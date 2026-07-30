@@ -321,6 +321,112 @@ th {
   margin: auto;
 }
 
+.icon {
+  display: inline-block;
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}
+
+.four-cards {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.materials-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.materials-grid article {
+  display: grid;
+  gap: 0.8rem;
+  place-items: center;
+  min-height: 130px;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.materials-grid strong {
+  font-size: 1rem;
+}
+
+.map-section {
+  background: #f1f8f4;
+}
+
+.map-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 0.8fr);
+  gap: 1rem;
+  align-items: stretch;
+}
+
+.map-layout iframe {
+  width: 100%;
+  min-height: 480px;
+  border: 0;
+  border-radius: 24px;
+  box-shadow: 0 12px 35px rgba(16, 32, 26, 0.09);
+}
+
+.collection-points {
+  display: grid;
+  gap: 1rem;
+}
+
+.point-badge {
+  display: inline-grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  margin-bottom: 0.8rem;
+  border-radius: 999px;
+  background: var(--green);
+  color: white;
+  font-weight: 900;
+}
+
+.improvement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+.improvement-grid article strong {
+  display: inline-grid;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+  background: var(--lime);
+  color: #18320f;
+}
+
+.faq-list {
+  display: grid;
+  gap: 1rem;
+  max-width: 900px;
+}
+
+.faq-list details {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1rem 1.2rem;
+  box-shadow: 0 12px 35px rgba(16, 32, 26, 0.07);
+}
+
+.faq-list summary {
+  cursor: pointer;
+  font-weight: 900;
+  color: var(--green);
+}
+
+.faq-list p {
+  margin-bottom: 0;
+}
+
 footer {
   display: flex;
   justify-content: space-between;
@@ -354,6 +460,10 @@ footer {
 
   .grid-2,
   .cards,
+  .four-cards,
+  .materials-grid,
+  .map-layout,
+  .improvement-grid,
   .dashboard-cards,
   .ranking-grid,
   .record-form {
