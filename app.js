@@ -1,5 +1,9 @@
 const STORAGE_KEY = 'ecotech.records.v1'
-const LOGIN = { email: 'admin@ecotech.local', password: 'ecotech' }
+
+const SERVER_URL =
+  typeof window !== 'undefined' && window.location.origin && window.location.origin.startsWith('http')
+    ? window.location.origin
+    : 'http://127.0.0.1:3000'
 
 const _$ = (selector) => document.querySelector(selector)
 const menuButton = _$('.menu-button')
@@ -115,6 +119,31 @@ function _saveAndRender() {
   _render()
 }
 
+async function _fetchRecords() {
+  try {
+    const res = await globalThis.fetch(`${SERVER_URL}/items`)
+    if (res.ok) {
+      const data = await res.json()
+      if (Array.isArray(data.items) && data.items.length > 0) {
+        records = data.items.map((item) => ({
+          id: item.uuid || item.id,
+          device: item.name || '',
+          weight: Number(item.weight || 0),
+          school: item.school || '',
+          classroom: item.description || '',
+          student: item.owner || '',
+          status: item.state || 'Na escola',
+          createdAt: item.createdAt || item.created_at || new Date().toISOString()
+        }))
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch items from server, using local records:', err)
+  }
+  _render()
+}
+
 function _exportPdf() {
   const title = 'Relatorio EcoTech - Residuos Eletronicos'
 
@@ -157,38 +186,60 @@ function _demoRecords() {
   ]
 }
 
-menuButton.addEventListener('click', () => {
+menuButton.addEventListener('click', async () => {
   const isOpen = menu.classList.toggle('open')
 
   menuButton.setAttribute('aria-expanded', String(isOpen))
 })
 
-loginForm.addEventListener('submit', (event) => {
+loginForm.addEventListener('submit', async (event) => {
   event.preventDefault()
 
   const email = _$('#email').value.trim()
   const password = _$('#password').value
 
-  if (email === LOGIN.email && password === LOGIN.password) {
-    loginForm.classList.add('hidden')
-    adminArea.classList.remove('hidden')
-    _$('#loginMessage').textContent = ''
-    _render()
+  try {
+    const res = await globalThis.fetch(`${SERVER_URL}/login`, {
+      method: 'POST',
+      mode: 'cors',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username: email, password })
+    })
 
-    return;
+    if (res.ok) {
+      const data = await res.json()
+
+      if (data.token) {
+        localStorage.setItem('ecotech.token', data.token)
+      }
+      loginForm.classList.add('hidden')
+      adminArea.classList.remove('hidden')
+      _$('#loginMessage').textContent = ''
+      await _fetchRecords()
+
+      return;
+    }
+
+    const errData = await res.json().catch(() => ({}))
+    _$('#loginMessage').textContent = errData.error || 'Login invalido.'
+  } catch (err) {
+    console.error('Login request failed:', err)
+    _$('#loginMessage').textContent = 'Erro ao conectar ao servidor.'
   }
-
-  _$('#loginMessage').textContent = 'Login invalido. Use as credenciais de demonstracao.'
 })
 
 _$('#logoutButton').addEventListener('click', () => {
+  localStorage.removeItem('ecotech.token')
   adminArea.classList.add('hidden')
   loginForm.classList.remove('hidden')
 })
 
-recordForm.addEventListener('submit', (event) => {
+recordForm.addEventListener('submit', async (event) => {
   event.preventDefault()
 
+  const token = localStorage.getItem('ecotech.token')
   const record = {
     id: _createId(),
     device: _$('#device').value.trim(),
@@ -200,6 +251,36 @@ recordForm.addEventListener('submit', (event) => {
     createdAt: new Date().toISOString()
   }
 
+  if (token) {
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: record.device,
+          owner: record.student,
+          weight: record.weight,
+          state: record.status,
+          school: record.school,
+          description: record.classroom
+        })
+      })
+
+      if (res.ok) {
+        const newItem = await res.json()
+
+        if (newItem.uuid) {
+          record.id = newItem.uuid
+        }
+      }
+    } catch (err) {
+      console.warn('Could not post record to server:', err)
+    }
+  }
+
   records.unshift(record)
   _saveAndRender()
   recordForm.reset()
@@ -207,10 +288,38 @@ recordForm.addEventListener('submit', (event) => {
 
 _$('#printLabels').addEventListener('click', () => window.print())
 _$('#exportPdf').addEventListener('click', () => _exportPdf())
-_$('#seedDemo').addEventListener('click', () => {
+_$('#seedDemo').addEventListener('click', async () => {
   records = _demoRecords()
-  _saveAndRender()
+  const token = localStorage.getItem('ecotech.token')
+
+  if (token) {
+    for (const item of records) {
+      try {
+        await globalThis.fetch(`${SERVER_URL}/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            name: item.device,
+            owner: item.student,
+            weight: item.weight,
+            state: item.status,
+            school: item.school,
+            description: item.classroom
+          })
+        })
+      } catch (err) {
+        console.warn('Failed to seed demo item to server:', err)
+      }
+    }
+    await _fetchRecords()
+  } else {
+    _saveAndRender()
+  }
 })
+
 _$('#clearData').addEventListener('click', () => {
   if (confirm('Deseja apagar todos os registros desta demonstracao?')) {
     records = []
@@ -218,4 +327,9 @@ _$('#clearData').addEventListener('click', () => {
   }
 })
 
-_render()
+if (localStorage.getItem('ecotech.token')) {
+  loginForm.classList.add('hidden')
+  adminArea.classList.remove('hidden')
+}
+
+_fetchRecords()
