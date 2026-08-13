@@ -689,6 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
           L.latLng(originCoords.lat, originCoords.lng),
           L.latLng(destCoords.lat, destCoords.lng)
         ],
+        language: 'pt-BR',
         lineOptions: {
           styles: [{ color: '#1976D2', weight: 5, opacity: 0.8 }]
         },
