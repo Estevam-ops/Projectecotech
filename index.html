@@ -79,7 +79,7 @@
     <header class="hero" id="inicio">
       <div class="hero-content">
         <p class="eyebrow">IFTM UPT · Escolas · Cooperu</p>
-        <h1>Transforme lixo eletrônico em <em>educação ambiental</em> e impacto social.</h1>
+        <h1>Transforme Resíduo eletrônico em <em>educação ambiental</em> e impacto social.</h1>
         <p class="hero-lead">
           Uma plataforma para divulgar a campanha, registrar aparelhos por QR Code,
           monitorar coletas por escola, sala e aluno, e gerar relatórios para a premiação.
@@ -134,7 +134,7 @@
       <section class="section" id="conscientizacao" data-reveal>
         <div class="section-heading">
           <p class="eyebrow">Conscientização</p>
-          <h2>Por que o lixo eletrônico é um problema?</h2>
+          <h2>Por que o Resíduo eletrônico é um problema?</h2>
           <p>O descarte inadequado de equipamentos eletrônicos pode contaminar solo, água e colocar a saúde da comunidade em risco.</p>
         </div>
         <div class="cards four-cards">
@@ -200,19 +200,20 @@
             </div>
           </div>
 
-          <div id="route-instructions"></div>
+          <p id="route-status" class="visually-hidden" role="status" aria-atomic="true"></p>
+          <div id="route-instructions" role="region" aria-label="Resultado e instruções da rota"></div>
 
-          <div id="map-container" role="application" aria-label="Mapa interativo dos pontos de coleta em Uberaba"></div>
+          <div id="map-container" role="region" aria-label="Mapa interativo dos pontos de coleta em Uberaba"></div>
 
-          <div class="collection-points" aria-label="Lista de pontos de coleta">
-            <article>
+          <div class="collection-points" role="list" aria-label="Pontos de coleta disponíveis">
+            <article role="listitem">
               <span class="point-badge">1</span>
               <h3>IFTM UPT - Unidade II</h3>
               <p>Av. Edilson Lamartine Mendes, 300 - Parque das Américas, Uberaba - MG, 38045-000.</p>
               <p><strong>Telefone:</strong> (34) 3326-1000</p>
               <a class="button secondary" href="https://www.google.com/maps/search/?api=1&query=Av.%20Edilson%20Lamartine%20Mendes%20300%20Parque%20das%20Am%C3%A9ricas%20Uberaba%20MG" target="_blank" rel="noopener">Abrir no Google Maps</a>
             </article>
-            <article>
+            <article role="listitem">
               <span class="point-badge">2</span>
               <h3>IFTM UPT - Unidade I</h3>
               <p>Av. Dr. Florestan Fernandes, 131 - Univerdecidade, Uberaba - MG, 38064-190.</p>
@@ -236,9 +237,9 @@
           <div class="metric"><span id="topStudent">-</span><small>aluno destaque</small></div>
         </div>
         <div class="ranking-grid">
-          <div class="panel"><h3>Escolas</h3><ol id="schoolRanking"></ol></div>
-          <div class="panel"><h3>Salas</h3><ol id="classRanking"></ol></div>
-          <div class="panel"><h3>Alunos</h3><ol id="studentRanking"></ol></div>
+          <div class="panel"><h3 id="school-ranking-title">Escolas</h3><ol id="schoolRanking" aria-labelledby="school-ranking-title"></ol></div>
+          <div class="panel"><h3 id="class-ranking-title">Salas</h3><ol id="classRanking" aria-labelledby="class-ranking-title"></ol></div>
+          <div class="panel"><h3 id="student-ranking-title">Alunos</h3><ol id="studentRanking" aria-labelledby="student-ranking-title"></ol></div>
         </div>
       </section>
 
@@ -374,13 +375,14 @@
 
           <div class="table-wrap">
             <table>
+              <caption class="visually-hidden">Registros de aparelhos cadastrados na campanha</caption>
               <thead>
-                <tr><th>ID</th><th>Aparelho</th><th>Peso</th><th>Escola</th><th>Sala</th><th>Aluno</th><th>Status</th><th>QR</th></tr>
+                <tr><th scope="col">ID</th><th scope="col">Aparelho</th><th scope="col">Peso</th><th scope="col">Escola</th><th scope="col">Sala</th><th scope="col">Aluno</th><th scope="col">Status</th><th scope="col">QR</th></tr>
               </thead>
               <tbody id="recordsTable"></tbody>
             </table>
           </div>
-          <div class="labels" id="labels" aria-label="Etiquetas para impressão"></div>
+          <div class="labels" id="labels" role="list" aria-label="Etiquetas para impressão"></div>
         </div>
       </section>
     </main>

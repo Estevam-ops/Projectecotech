@@ -10,7 +10,7 @@ const recordForm = $('#recordForm');
 const recordsTable = $('#recordsTable');
 const labels = $('#labels');
 
-let records = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+let records = loadRecords();
 
 menuButton.addEventListener('click', () => {
   const isOpen = menu.classList.toggle('open');
@@ -38,33 +38,86 @@ $('#logoutButton').addEventListener('click', () => {
 
 recordForm.addEventListener('submit', (event) => {
   event.preventDefault();
+  const textInputs = [$('#device'), $('#school'), $('#classroom'), $('#student')];
+  textInputs.forEach((input) => input.setCustomValidity(''));
+
+  const blankInput = textInputs.find((input) => !input.value.trim());
+  if (blankInput) {
+    blankInput.setCustomValidity('Preencha este campo com um texto válido.');
+    blankInput.reportValidity();
+    blankInput.addEventListener('input', () => blankInput.setCustomValidity(''), { once: true });
+    return;
+  }
+
+  const weightInput = $('#weight');
+  const weight = Number(weightInput.value);
+  if (!Number.isFinite(weight) || weight <= 0) {
+    weightInput.setCustomValidity('Informe um peso maior que zero.');
+    weightInput.reportValidity();
+    weightInput.addEventListener('input', () => weightInput.setCustomValidity(''), { once: true });
+    return;
+  }
+
   const record = {
     id: createId(),
     device: $('#device').value.trim(),
-    weight: Number($('#weight').value),
+    weight,
     school: $('#school').value.trim(),
     classroom: $('#classroom').value.trim(),
     student: $('#student').value.trim(),
     status: $('#status').value,
     createdAt: new Date().toISOString(),
   };
-  records.unshift(record);
-  saveAndRender();
-  recordForm.reset();
+  if (saveAndRender([record, ...records])) {
+    recordForm.reset();
+  }
 });
 
 $('#printLabels').addEventListener('click', () => window.print());
 $('#exportPdf').addEventListener('click', exportPdf);
 $('#seedDemo').addEventListener('click', () => {
-  records = demoRecords();
-  saveAndRender();
+  if (records.length && !confirm('Carregar os exemplos substituirá todos os registros atuais. Deseja continuar?')) {
+    return;
+  }
+  saveAndRender(demoRecords());
 });
 $('#clearData').addEventListener('click', () => {
   if (confirm('Deseja apagar todos os registros desta demonstração?')) {
-    records = [];
-    saveAndRender();
+    saveAndRender([]);
   }
 });
+
+function parseRecords(rawValue) {
+  const parsed = JSON.parse(rawValue);
+  if (!Array.isArray(parsed)) {
+    throw new TypeError('Os registros salvos não estão no formato esperado.');
+  }
+
+  const requiredTextFields = ['id', 'device', 'school', 'classroom', 'student', 'status'];
+  const validRecords = parsed.filter((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+
+    const hasRequiredText = requiredTextFields.every(
+      (field) => typeof item[field] === 'string' && item[field].trim()
+    );
+    const weight = Number(item.weight);
+    return hasRequiredText && Number.isFinite(weight) && weight > 0;
+  });
+  if (validRecords.length !== parsed.length) {
+    console.warn('Alguns registros inválidos foram ignorados ao carregar os dados.');
+  }
+  return validRecords;
+}
+
+function loadRecords() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored === null ? [] : parseRecords(stored);
+  } catch (error) {
+    console.error('Não foi possível carregar os registros salvos:', error);
+    return [];
+  }
+}
 
 function createId() {
   const timestamp = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
@@ -72,10 +125,30 @@ function createId() {
   return `ECO-${timestamp}-${random}`;
 }
 
-function saveAndRender() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+function saveAndRender(nextRecords) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
+  } catch (error) {
+    console.error('Não foi possível salvar os registros:', error);
+    alert('Não foi possível salvar os dados neste navegador. Verifique as permissões de armazenamento e tente novamente.');
+    return false;
+  }
+
+  records = nextRecords;
   render();
+  return true;
 }
+
+window.addEventListener('storage', (event) => {
+  if (event.key !== STORAGE_KEY) return;
+
+  try {
+    records = event.newValue === null ? [] : parseRecords(event.newValue);
+    render();
+  } catch (error) {
+    console.error('A atualização recebida de outra aba é inválida:', error);
+  }
+});
 
 function render() {
   renderMetrics();
@@ -146,6 +219,7 @@ function renderLabels() {
   records.forEach((item) => {
     const card = document.createElement('article');
     card.className = 'label-card';
+    card.setAttribute('role', 'listitem');
     card.innerHTML = `<strong>${escapeHtml(item.id)}</strong><div class="qr"></div><small>${escapeHtml(item.device)} • ${escapeHtml(item.school)} • ${escapeHtml(item.student)}</small>`;
     labels.appendChild(card);
     addQr(card.querySelector('.qr'), item.id, 128);
@@ -508,7 +582,31 @@ const pontosColeta = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (!document.getElementById('map-container')) return;
+  const mapContainer = document.getElementById('map-container');
+  const instructionsDiv = document.getElementById('route-instructions');
+  const routeStatus = document.getElementById('route-status');
+  if (!mapContainer) return;
+
+  function announceRoute(message) {
+    if (routeStatus) routeStatus.textContent = message;
+  }
+
+  function showRouteError(message) {
+    if (instructionsDiv) instructionsDiv.textContent = message;
+    announceRoute(message);
+  }
+
+  if (!window.L || typeof window.L.map !== 'function' || typeof window.L.tileLayer !== 'function') {
+    const message = 'Mapa indisponível. Verifique sua conexão e recarregue a página.';
+    mapContainer.classList.add('map-unavailable');
+    mapContainer.textContent = message;
+    ['gps-btn', 'calc-route-btn', 'filter-map-btn'].forEach((id) => {
+      const button = document.getElementById(id);
+      if (button) button.disabled = true;
+    });
+    announceRoute(message);
+    return;
+  }
 
   const map = L.map('map-container').setView([-19.7478, -47.9333], 13);
 
@@ -523,21 +621,25 @@ document.addEventListener('DOMContentLoaded', () => {
   let routingControl = null;
   let userCurrentCoords = null;
 
+  function pontosPorMaterial(material = 'all') {
+    return material === 'all'
+      ? pontosColeta
+      : pontosColeta.filter((ponto) => ponto.materiais.includes(material));
+  }
+
   function renderEcopontos(filtroMaterial = "all") {
     markersLayer.clearLayers();
 
-    pontosColeta.forEach((ponto) => {
-      if (filtroMaterial === "all" || ponto.materiais.includes(filtroMaterial)) {
-        const marker = L.marker([ponto.lat, ponto.lng]);
-        marker.bindPopup(`
-          <div class="map-popup">
-            <h4>${ponto.nome}</h4>
-            <p>${ponto.endereco}</p>
-            <p class="map-popup-materials"><strong>Aceita:</strong> ${ponto.materiais.join(', ')}</p>
-          </div>
-        `);
-        markersLayer.addLayer(marker);
-      }
+    pontosPorMaterial(filtroMaterial).forEach((ponto) => {
+      const marker = L.marker([ponto.lat, ponto.lng]);
+      marker.bindPopup(`
+        <div class="map-popup">
+          <h4>${ponto.nome}</h4>
+          <p>${ponto.endereco}</p>
+          <p class="map-popup-materials"><strong>Aceita:</strong> ${ponto.materiais.join(', ')}</p>
+        </div>
+      `);
+      markersLayer.addLayer(marker);
     });
   }
 
@@ -607,6 +709,13 @@ document.addEventListener('DOMContentLoaded', () => {
     calcRouteBtn.addEventListener('click', async () => {
       const originText = document.getElementById('origin-input').value.trim();
       const destText = document.getElementById('destination-input').value.trim();
+      const selectedMaterial = document.getElementById('material-filter').value;
+      const eligiblePoints = pontosPorMaterial(selectedMaterial);
+
+      if (!eligiblePoints.length) {
+        alert('Nenhum ponto de coleta aceita o material selecionado.');
+        return;
+      }
 
       let originCoords = null;
       let destCoords = null;
@@ -633,6 +742,10 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         if (ecopontoEncontrado) {
+          if (selectedMaterial !== 'all' && !ecopontoEncontrado.materiais.includes(selectedMaterial)) {
+            alert('O ponto de coleta informado não aceita o material selecionado.');
+            return;
+          }
           destCoords = {
             lat: ecopontoEncontrado.lat,
             lng: ecopontoEncontrado.lng
@@ -644,7 +757,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let maisProximo = null;
         let menorDist = Infinity;
 
-        pontosColeta.forEach((ponto) => {
+        eligiblePoints.forEach((ponto) => {
           const dist = calcularDistancia(
             originCoords.lat,
             originCoords.lng,
@@ -682,7 +795,22 @@ document.addEventListener('DOMContentLoaded', () => {
         .addTo(map)
         .bindPopup("<b>Destino</b>");
 
-      if (routingControl) map.removeControl(routingControl);
+      if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+      }
+
+      if (!window.L.Routing || typeof window.L.Routing.control !== 'function') {
+        showRouteError('A rota detalhada está indisponível. O mapa mostra apenas a origem e o destino.');
+        map.fitBounds(
+          [
+            [originCoords.lat, originCoords.lng],
+            [destCoords.lat, destCoords.lng]
+          ],
+          { padding: [32, 32], maxZoom: 15 }
+        );
+        return;
+      }
 
       routingControl = L.Routing.control({
         waypoints: [
@@ -697,11 +825,19 @@ document.addEventListener('DOMContentLoaded', () => {
         draggableWaypoints: false,
         fitSelectedRoutes: true,
         show: true
-      }).addTo(map);
+      });
 
-      const instructionsDiv = document.getElementById('route-instructions');
-      instructionsDiv.innerHTML = '';
-      instructionsDiv.appendChild(routingControl.getContainer());
+      routingControl.on('routesfound', () => {
+        announceRoute('Rota calculada. As instruções estão disponíveis antes do mapa.');
+      });
+      routingControl.on('routingerror', () => {
+        announceRoute('Não foi possível calcular a rota solicitada. Tente outro endereço.');
+      });
+      routingControl.addTo(map);
+
+      if (instructionsDiv) {
+        instructionsDiv.replaceChildren(routingControl.getContainer());
+      }
     });
   }
 
