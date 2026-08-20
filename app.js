@@ -168,12 +168,30 @@ function rankBy(field) {
 }
 
 function renderMetrics() {
+  const totalItemsEl = $('#totalItems');
+  const totalWeightEl = $('#totalWeight');
+  const topSchoolEl = $('#topSchool');
+  const topStudentEl = $('#topStudent');
+
+  if (serverDown) {
+    if (totalItemsEl) totalItemsEl.textContent = 'Servidor offline';
+    if (totalWeightEl) totalWeightEl.textContent = 'Servidor offline';
+    if (topSchoolEl) topSchoolEl.textContent = 'Servidor offline';
+    if (topStudentEl) topStudentEl.textContent = 'Servidor offline';
+    return;
+  }
+
   const schools = rankBy('school');
   const students = rankBy('student');
-  $('#totalItems').textContent = records.length;
-  $('#totalWeight').textContent = `${totalWeight().toFixed(2)} kg`;
-  $('#topSchool').textContent = schools[0] ? `${schools[0][0]} (${schools[0][1].toFixed(2)} kg)` : '-';
-  $('#topStudent').textContent = students[0] ? `${students[0][0]} (${students[0][1].toFixed(2)} kg)` : '-';
+
+  if (totalItemsEl) totalItemsEl.textContent = records.length;
+  if (totalWeightEl) totalWeightEl.textContent = `${totalWeight().toFixed(2)} kg`;
+  if (topSchoolEl) {
+    topSchoolEl.textContent = schools[0] ? `${schools[0][0]} (${schools[0][1].toFixed(2)} kg)` : '-';
+  }
+  if (topStudentEl) {
+    topStudentEl.textContent = students[0] ? `${students[0][0]} (${students[0][1].toFixed(2)} kg)` : '-';
+  }
 }
 
 function renderRankings() {
@@ -184,6 +202,13 @@ function renderRankings() {
 
 function fillRanking(selector, rows) {
   const target = $(selector);
+  if (!target) return;
+
+  if (serverDown) {
+    target.innerHTML = '<li>Servidor offline. Não foi possível carregar o ranking.</li>';
+    return;
+  }
+
   target.innerHTML = rows.length ? '' : '<li>Nenhum registro ainda.</li>';
   rows.slice(0, 10).forEach(([name, weight]) => {
     const li = document.createElement('li');
@@ -204,6 +229,14 @@ function escapeHtml(value) {
 
 function renderTable() {
   recordsTable.innerHTML = '';
+
+  if (serverDown) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td>`;
+    recordsTable.appendChild(tr);
+    return;
+  }
+
   records.forEach((item) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `

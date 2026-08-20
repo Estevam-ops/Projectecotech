@@ -14,19 +14,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="styles.css" />
     <script>
-      // Aplica o tema salvo antes da primeira pintura, para nao piscar.
       (function () {
-        try {
-          var saved = localStorage.getItem('ecotech.theme');
-          if (saved === 'dark' || saved === 'light') {
-            document.documentElement.setAttribute('data-theme', saved);
-          }
-        } catch (e) {}
-        // Liga as animações só para quem não pediu movimento reduzido.
         try {
           if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
             document.documentElement.classList.add('js-anim');
-            // Rede de segurança: se o app.js falhar, o conteúdo aparece assim mesmo.
             setTimeout(function () {
               var ocultos = document.querySelectorAll('[data-reveal]:not(.is-visible)');
               for (var i = 0; i < ocultos.length; i += 1) {
