@@ -3,6 +3,7 @@ const SERVER_URL = 'http://127.0.0.1:3000'
 const $ = (selector) => document.querySelector(selector)
 const menuButton = $('.menu-button')
 const menu = $('#menu')
+const menuOverlay = $('#menuOverlay')
 const loginForm = $('#loginForm')
 const adminArea = $('#adminArea')
 const recordForm = $('#recordForm')
@@ -21,6 +22,30 @@ const _escapeHtml = (value) => {
     .replace(/>/g, '&gt;')
     .replace(/'/g, '&#39;')
     .replace(/"/g, '&quot;')
+}
+
+
+const _showToast = (message, type = 'success') => {
+  const container = $('#toastContainer')
+
+  if (!container) return;
+
+  const toast = document.createElement('div')
+
+  toast.className = `toast toast-${type}`
+  toast.textContent = message
+  container.appendChild(toast)
+
+  requestAnimationFrame(() => {
+    toast.classList.add('is-visible')
+  })
+
+  setTimeout(() => {
+    toast.classList.remove('is-visible')
+    toast.classList.add('is-leaving')
+
+    setTimeout(() => toast.remove(), 250)
+  }, 4000)
 }
 
 
@@ -78,6 +103,17 @@ const _demoRecords = () => {
 }
 
 
+const _getStatusClass = (status = '') => {
+  const lower = status.toLowerCase()
+
+  if (lower.includes('coletado')) return 'status-coletado'
+  if (lower.includes('escola')) return 'status-na-escola'
+  if (lower.includes('iftm')) return 'status-no-iftm'
+
+  return 'status-pendente'
+}
+
+
 /* INFO: Unified UI Renderer */
 const _render = () => {
   const metricEls = {
@@ -95,7 +131,7 @@ const _render = () => {
     ;['#schoolRanking', '#classRanking', '#studentRanking'].forEach((sel) => {
       const el = $(sel)
 
-      if (el) el.innerHTML = '<li>Servidor offline. Não foi possível carregar o ranking.</li>'
+      if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
     recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
@@ -120,12 +156,29 @@ const _render = () => {
   rankTargets.forEach(({ target, rows }) => {
     if (!target) return;
 
-    target.innerHTML = rows.length ? '' : '<li>Nenhum registro ainda.</li>'
+    target.innerHTML = ''
 
-    rows.slice(0, 10).forEach(([name, weight]) => {
+    if (!rows.length) {
+      target.innerHTML = '<li class="empty-state"><div class="empty-title">Nenhum registro ainda</div><p class="empty-text">Os dados serão exibidos assim que forem cadastrados.</p></li>'
+
+      return;
+    }
+
+    const maxWeight = rows[0][1] || 1
+
+    rows.slice(0, 10).forEach(([name, weight], index) => {
       const li = document.createElement('li')
+      const pct = Math.max(8, Math.round((weight / maxWeight) * 100))
 
-      li.textContent = `${name}: ${weight.toFixed(2)} kg`
+      li.className = 'rank-item'
+      li.innerHTML = `
+        <span class="rank-position">${index + 1}</span>
+        <div class="rank-info">
+          <div class="rank-name">${_escapeHtml(name)}</div>
+          <div class="rank-weight">${weight.toFixed(2)} kg</div>
+        </div>
+        <div class="rank-bar-bg"><div class="rank-bar-fill" style="width: ${pct}%;"></div></div>`
+
       target.appendChild(li)
     })
   })
@@ -133,12 +186,25 @@ const _render = () => {
   recordsTable.innerHTML = ''
   labels.innerHTML = ''
 
+  if (!records.length) {
+    recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+
+    return;
+  }
+
   records.forEach((item) => {
     const tr = document.createElement('tr')
+    const statusClass = _getStatusClass(item.status)
 
     tr.innerHTML = `
-      <td>${_escapeHtml(item.id)}</td><td>${_escapeHtml(item.device)}</td><td>${Number(item.weight).toFixed(2)} kg</td>
-      <td>${_escapeHtml(item.school)}</td><td>${_escapeHtml(item.classroom)}</td><td>${_escapeHtml(item.student)}</td><td>${_escapeHtml(item.status)}</td><td class="qr-cell"></td>`
+      <td><strong>${_escapeHtml(item.id)}</strong></td>
+      <td>${_escapeHtml(item.device)}</td>
+      <td><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
+      <td>${_escapeHtml(item.school)}</td>
+      <td>${_escapeHtml(item.classroom)}</td>
+      <td>${_escapeHtml(item.student)}</td>
+      <td><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
+      <td class="qr-cell"></td>`
 
     recordsTable.appendChild(tr)
 
@@ -195,18 +261,46 @@ const _fetchRecords = async () => {
 }
 
 
-menuButton.addEventListener('click', () => {
-  const isOpen = menu.classList.toggle('open')
+const _toggleMenu = (open) => {
+  const isOpen = open !== undefined ? open : menu.classList.toggle('open')
 
-  menuButton.setAttribute('aria-expanded', String(isOpen))
-})
+  if (isOpen) {
+    menu.classList.add('open')
+    if (menuOverlay) menuOverlay.classList.add('is-open')
+    menuButton.setAttribute('aria-expanded', 'true')
+  } else {
+    menu.classList.remove('open')
+    if (menuOverlay) menuOverlay.classList.remove('is-open')
+    menuButton.setAttribute('aria-expanded', 'false')
+  }
+}
+
+menuButton.addEventListener('click', () => _toggleMenu())
+
+if (menuOverlay) {
+  menuOverlay.addEventListener('click', () => _toggleMenu(false))
+}
 
 
 loginForm.addEventListener('submit', async (event) => {
   event.preventDefault()
 
-  const email = $('#email').value.trim()
-  const password = $('#password').value
+  const submitBtn = loginForm.querySelector('button[type="submit"]')
+  const emailInput = $('#email')
+  const email = emailInput.value.trim()
+  const passwordInput = $('#password')
+  const password = passwordInput.value
+
+  [emailInput, passwordInput].forEach((input) => input.classList.remove('is-invalid'))
+
+  if (!email) {
+    emailInput.classList.add('is-invalid')
+    emailInput.addEventListener('input', () => emailInput.classList.remove('is-invalid'), { once: true })
+
+    return;
+  }
+
+  if (submitBtn) submitBtn.classList.add('is-loading')
 
   try {
     const res = await globalThis.fetch(`${SERVER_URL}/login`, {
@@ -227,18 +321,24 @@ loginForm.addEventListener('submit', async (event) => {
       adminArea.classList.remove('hidden')
       $('#loginMessage').textContent = ''
 
+      _showToast('Autenticação realizada com sucesso!', 'success')
       await _fetchRecords()
 
       return;
     }
 
     const errData = await res.json().catch(() => ({}))
+    const errorMsg = errData.error || 'Login inválido.'
 
-    $('#loginMessage').textContent = errData.error || 'Login inválido.'
+    $('#loginMessage').textContent = errorMsg
+    _showToast(errorMsg, 'error')
   } catch (err) {
     console.error('Login request failed:', err)
 
     $('#loginMessage').textContent = 'Servidor offline. Não foi possível conectar.'
+    _showToast('Servidor offline. Não foi possível conectar.', 'error')
+  } finally {
+    if (submitBtn) submitBtn.classList.remove('is-loading')
   }
 })
 
@@ -248,22 +348,29 @@ $('#logoutButton').addEventListener('click', () => {
 
   adminArea.classList.add('hidden')
   loginForm.classList.remove('hidden')
+  _showToast('Sessão encerrada com sucesso.', 'success')
 })
 
 
 recordForm.addEventListener('submit', async (event) => {
   event.preventDefault()
 
+  const submitBtn = recordForm.querySelector('button[type="submit"]')
   const textInputs = [$('#device'), $('#school'), $('#classroom'), $('#student')]
   const weightInput = $('#weight')
 
-  textInputs.concat(weightInput).forEach((input) => input.setCustomValidity(''))
+  textInputs.concat(weightInput).forEach((input) => {
+    input.classList.remove('is-invalid')
+    input.setCustomValidity('')
+  })
 
   const blankInput = textInputs.find((input) => !input.value.trim())
 
   if (blankInput) {
+    blankInput.classList.add('is-invalid')
     blankInput.setCustomValidity('Preencha este campo com um texto válido.')
     blankInput.reportValidity()
+    blankInput.addEventListener('input', () => blankInput.classList.remove('is-invalid'), { once: true })
 
     return;
   }
@@ -271,8 +378,10 @@ recordForm.addEventListener('submit', async (event) => {
   const weight = Number(weightInput.value)
 
   if (!Number.isFinite(weight) || weight <= 0) {
+    weightInput.classList.add('is-invalid')
     weightInput.setCustomValidity('Informe um peso maior que zero.')
     weightInput.reportValidity()
+    weightInput.addEventListener('input', () => weightInput.classList.remove('is-invalid'), { once: true })
 
     return;
   }
@@ -288,43 +397,50 @@ recordForm.addEventListener('submit', async (event) => {
     createdAt: new Date().toISOString()
   }
 
-  if (authToken) {
-    try {
-      const res = await globalThis.fetch(`${SERVER_URL}/items`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`
-        },
-        body: JSON.stringify({
-          name: record.device,
-          owner: record.student,
-          weight: record.weight,
-          state: record.status,
-          school: record.school,
-          description: record.classroom
-        })
-      })
+  if (submitBtn) submitBtn.classList.add('is-loading')
 
-      if (res.ok) {
-        await _fetchRecords()
-        recordForm.reset()
+  try {
+    if (authToken) {
+      try {
+        const res = await globalThis.fetch(`${SERVER_URL}/items`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            name: record.device,
+            owner: record.student,
+            weight: record.weight,
+            state: record.status,
+            school: record.school,
+            description: record.classroom
+          })
+        })
+
+        if (res.ok) {
+          await _fetchRecords()
+          recordForm.reset()
+          _showToast('Dispositivo registrado com sucesso no servidor!', 'success')
+
+          return;
+        }
+      } catch (err) {
+        console.warn('Could not post record to server:', err)
+
+        _showToast('Servidor offline. Não foi possível enviar ao servidor.', 'error')
 
         return;
       }
-    } catch (err) {
-      console.warn('Could not post record to server:', err)
-
-      alert('Servidor offline. Não foi possível enviar o registro ao servidor.')
-
-      return;
     }
+
+    records.unshift(record)
+    _render()
+    recordForm.reset()
+    _showToast('Dispositivo registrado localmente com sucesso!', 'success')
+  } finally {
+    if (submitBtn) submitBtn.classList.remove('is-loading')
   }
-
-  records.unshift(record)
-  _render()
-
-  recordForm.reset()
 })
 
 
@@ -666,12 +782,15 @@ $('#seedDemo').addEventListener('click', async () => {
     records = demoList
     _render()
   }
+
+  _showToast('Registros de exemplo carregados com sucesso!', 'success')
 })
 
 $('#clearData').addEventListener('click', () => {
   if (confirm('Deseja apagar todos os registros desta demonstração?')) {
     records = []
     _render()
+    _showToast('Todos os registros foram limpos.', 'success')
   }
 })
 
@@ -842,17 +961,23 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      gpsBtn.classList.add('is-loading')
+
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          gpsBtn.classList.remove('is-loading')
           userCurrentCoords = {
             lat: pos.coords.latitude,
             lng: pos.coords.longitude
           }
 
           document.getElementById('origin-input').value = 'Minha localização atual (GPS)'
+          _showToast('Localização GPS obtida com sucesso!', 'success')
         },
         () => {
+          gpsBtn.classList.remove('is-loading')
           alert('Não foi possível obter a sua localização atual via GPS.')
+          _showToast('Erro ao obter localização GPS.', 'error')
         }
       )
     })
@@ -873,129 +998,137 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      calcRouteBtn.classList.add('is-loading')
+
       let originCoords = null
       let destCoords = null
 
-      if ((originText === '' || originText.includes('GPS')) && userCurrentCoords) {
-        originCoords = userCurrentCoords
-      } else if (originText !== '') {
-        originCoords = await _geocode(originText)
-      } else {
-        alert('Por favor, digite um endereço/bairro de origem ou clique em GPS.')
+      try {
+        if ((originText === '' || originText.includes('GPS')) && userCurrentCoords) {
+          originCoords = userCurrentCoords
+        } else if (originText !== '') {
+          originCoords = await _geocode(originText)
+        } else {
+          alert('Por favor, digite um endereço/bairro de origem ou clique em GPS.')
 
-        return;
-      }
+          return;
+        }
 
-      if (!originCoords) {
-        alert('Endereço de origem não encontrado em Uberaba.')
+        if (!originCoords) {
+          alert('Endereço de origem não encontrado em Uberaba.')
 
-        return;
-      }
+          return;
+        }
 
-      if (destText !== '') {
-        const ecopontoEncontrado = PONTOS_COLETA.find((p) =>
-          p.nome.toLowerCase().includes(destText.toLowerCase())
-        )
+        if (destText !== '') {
+          const ecopontoEncontrado = PONTOS_COLETA.find((p) =>
+            p.nome.toLowerCase().includes(destText.toLowerCase())
+          )
 
-        if (ecopontoEncontrado) {
-          if (selectedMaterial !== 'all' && !ecopontoEncontrado.materiais.includes(selectedMaterial)) {
-            alert('O ponto de coleta informado não aceita o material selecionado.')
+          if (ecopontoEncontrado) {
+            if (selectedMaterial !== 'all' && !ecopontoEncontrado.materiais.includes(selectedMaterial)) {
+              alert('O ponto de coleta informado não aceita o material selecionado.')
 
-            return;
-          }
+              return;
+            }
 
-          destCoords = {
-            lat: ecopontoEncontrado.lat,
-            lng: ecopontoEncontrado.lng
+            destCoords = {
+              lat: ecopontoEncontrado.lat,
+              lng: ecopontoEncontrado.lng
+            }
+          } else {
+            destCoords = await _geocode(destText)
           }
         } else {
-          destCoords = await _geocode(destText)
-        }
-      } else {
-        const nearest = eligiblePoints.reduce(
-          (best, ponto) => {
-            const dist = _calcularDistancia(originCoords.lat, originCoords.lng, ponto.lat, ponto.lng)
+          const nearest = eligiblePoints.reduce(
+            (best, ponto) => {
+              const dist = _calcularDistancia(originCoords.lat, originCoords.lng, ponto.lat, ponto.lng)
 
-            return dist < best.dist ? { ponto, dist } : best
-          },
-          { ponto: null, dist: Infinity }
-        ).ponto
+              return dist < best.dist ? { ponto, dist } : best
+            },
+            { ponto: null, dist: Infinity }
+          ).ponto
 
-        if (nearest) {
-          destCoords = {
-            lat: nearest.lat,
-            lng: nearest.lng
+          if (nearest) {
+            destCoords = {
+              lat: nearest.lat,
+              lng: nearest.lng
+            }
           }
         }
-      }
 
-      if (!destCoords) {
-        alert('Endereço de destino não localizado.')
+        if (!destCoords) {
+          alert('Endereço de destino não localizado.')
 
-        return;
-      }
+          return;
+        }
 
-      if (originMarker) map.removeLayer(originMarker)
-      if (destMarker) map.removeLayer(destMarker)
+        if (originMarker) map.removeLayer(originMarker)
+        if (destMarker) map.removeLayer(destMarker)
 
-      originMarker = L.marker([originCoords.lat, originCoords.lng])
-        .addTo(map)
-        .bindPopup('<b>Origem</b>')
-        .openPopup()
+        originMarker = L.marker([originCoords.lat, originCoords.lng])
+          .addTo(map)
+          .bindPopup('<b>Origem</b>')
+          .openPopup()
 
-      destMarker = L.marker([destCoords.lat, destCoords.lng])
-        .addTo(map)
-        .bindPopup('<b>Destino</b>')
+        destMarker = L.marker([destCoords.lat, destCoords.lng])
+          .addTo(map)
+          .bindPopup('<b>Destino</b>')
 
-      if (routingControl) {
-        map.removeControl(routingControl)
-        routingControl = null
-      }
+        if (routingControl) {
+          map.removeControl(routingControl)
+          routingControl = null
+        }
 
-      if (!window.L.Routing || typeof window.L.Routing.control !== 'function') {
-        const routeErr = 'A rota detalhada está indisponível. O mapa mostra apenas a origem e o destino.'
+        if (!window.L.Routing || typeof window.L.Routing.control !== 'function') {
+          const routeErr = 'A rota detalhada está indisponível. O mapa mostra apenas a origem e o destino.'
 
-        if (instructionsDiv) instructionsDiv.textContent = routeErr
-        if (routeStatus) routeStatus.textContent = routeErr
+          if (instructionsDiv) instructionsDiv.textContent = routeErr
+          if (routeStatus) routeStatus.textContent = routeErr
 
-        map.fitBounds(
-          [
-            [originCoords.lat, originCoords.lng],
-            [destCoords.lat, destCoords.lng]
+          map.fitBounds(
+            [
+              [originCoords.lat, originCoords.lng],
+              [destCoords.lat, destCoords.lng]
+            ],
+            { padding: [32, 32], maxZoom: 15 }
+          )
+
+          return;
+        }
+
+        routingControl = L.Routing.control({
+          waypoints: [
+            L.latLng(originCoords.lat, originCoords.lng),
+            L.latLng(destCoords.lat, destCoords.lng)
           ],
-          { padding: [32, 32], maxZoom: 15 }
-        )
+          language: 'pt-BR',
+          lineOptions: {
+            styles: [{ color: '#0b6b3f', weight: 5, opacity: 0.85 }]
+          },
+          addWaypoints: false,
+          draggableWaypoints: false,
+          fitSelectedRoutes: true,
+          show: true
+        })
 
-        return;
-      }
+        routingControl.on('routesfound', () => {
+          if (routeStatus) routeStatus.textContent = 'Rota calculada. As instruções estão disponíveis antes do mapa.'
+          _showToast('Rota calculada com sucesso!', 'success')
+        })
 
-      routingControl = L.Routing.control({
-        waypoints: [
-          L.latLng(originCoords.lat, originCoords.lng),
-          L.latLng(destCoords.lat, destCoords.lng)
-        ],
-        language: 'pt-BR',
-        lineOptions: {
-          styles: [{ color: '#1976D2', weight: 5, opacity: 0.8 }]
-        },
-        addWaypoints: false,
-        draggableWaypoints: false,
-        fitSelectedRoutes: true,
-        show: true
-      })
+        routingControl.on('routingerror', () => {
+          if (routeStatus) routeStatus.textContent = 'Não foi possível calcular a rota solicitada. Tente outro endereço.'
+          _showToast('Não foi possível calcular a rota.', 'error')
+        })
 
-      routingControl.on('routesfound', () => {
-        if (routeStatus) routeStatus.textContent = 'Rota calculada. As instruções estão disponíveis antes do mapa.'
-      })
+        routingControl.addTo(map)
 
-      routingControl.on('routingerror', () => {
-        if (routeStatus) routeStatus.textContent = 'Não foi possível calcular a rota solicitada. Tente outro endereço.'
-      })
-
-      routingControl.addTo(map)
-
-      if (instructionsDiv) {
-        instructionsDiv.replaceChildren(routingControl.getContainer())
+        if (instructionsDiv) {
+          instructionsDiv.replaceChildren(routingControl.getContainer())
+        }
+      } finally {
+        calcRouteBtn.classList.remove('is-loading')
       }
     })
   }
@@ -1007,12 +1140,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const material = document.getElementById('material-filter').value
 
       _renderEcopontos(material)
+      _showToast(`Filtro aplicado: ${material}`, 'success')
     })
   }
 })
 
 
-/* INFO: UI THEME TOGGLE & SCROLL INTERACTION */
+/* INFO: UI THEME TOGGLE & ACCORDION & SCROLL INTERACTION */
 
 ;(() => {
   const root = document.documentElement
@@ -1041,6 +1175,22 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  /* FAQ Accordion zero-JS-height logic */
+  document.querySelectorAll('.faq-trigger').forEach((trigger) => {
+    trigger.addEventListener('click', () => {
+      const isExpanded = trigger.getAttribute('aria-expanded') === 'true'
+
+      trigger.setAttribute('aria-expanded', String(!isExpanded))
+    })
+
+    trigger.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        trigger.click()
+      }
+    })
+  })
+
   const nav = document.getElementById('siteNav')
 
   if (nav) {
@@ -1057,6 +1207,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (event.target.tagName !== 'A') return;
 
       navMenu.classList.remove('open')
+      if (menuOverlay) menuOverlay.classList.remove('is-open')
       menuButton.setAttribute('aria-expanded', 'false')
     })
   }
@@ -1070,6 +1221,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       passwordInput.type = visivel ? 'password' : 'text'
       passwordToggle.classList.toggle('is-visible', !visivel)
+      passwordToggle.setAttribute('aria-pressed', String(!visivel))
 
       const rotulo = visivel ? 'Mostrar senha' : 'Ocultar senha'
 
@@ -1108,10 +1260,8 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
-  const links = [...document.querySelectorAll('.menu a[href^="#"]')]
-  const sections = links
-    .map((link) => document.querySelector(link.getAttribute('href')))
-    .filter(Boolean)
+  const links = [...document.querySelectorAll('.menu a[href^="#"], .edge-nav a[href^="#"]')]
+  const sections = [...document.querySelectorAll('section[id], header[id]')]
 
   if (sections.length && 'IntersectionObserver' in window) {
     const observer = new IntersectionObserver(
