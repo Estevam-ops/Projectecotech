@@ -2590,9 +2590,9 @@ footer a:hover { color: var(--accent-green); }
   .printable-qr-labels,
   #printableQrLabels {
     display: grid !important;
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 12mm !important;
-    padding: 12mm !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 4mm !important;
+    padding: 6mm !important;
     background: #ffffff !important;
     color: #0c1411 !important;
     width: 100% !important;
