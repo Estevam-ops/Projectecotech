@@ -2570,105 +2570,53 @@ footer a:hover { color: var(--accent-green); }
   }
 }
 
-/* ============ Fullscreen QR Code Viewer ============ */
-
-.fullscreen-qr-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10000;
-  background: rgba(0, 0, 0, 0.88);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  opacity: 0;
-  visibility: hidden;
-  cursor: pointer;
-  transition: opacity var(--duration-base) ease, visibility 0s linear var(--duration-base);
+/* ============ Print Styles (Raw QR Codes Only, No Headers/Footers/URL) ============ */
+@page {
+  margin: 0;
+  size: auto;
 }
 
-.fullscreen-qr-overlay.is-open {
-  opacity: 1;
-  visibility: visible;
-  transition: opacity var(--duration-base) ease, visibility 0s linear 0s;
-}
+@media print {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
 
-.fullscreen-qr-card {
-  position: relative;
-  width: 100%;
-  max-width: 440px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 36px 28px;
-  text-align: center;
-  box-shadow: var(--shadow-pop);
-  transform: scale(0.9) translateY(16px);
-  transition: transform var(--duration-slow) var(--ease-spring);
-  cursor: default;
-}
+  body > *:not(#printableQrLabels) {
+    display: none !important;
+  }
 
-.fullscreen-qr-overlay.is-open .fullscreen-qr-card {
-  transform: scale(1) translateY(0);
-}
+  .printable-qr-labels,
+  #printableQrLabels {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 12mm !important;
+    padding: 12mm !important;
+    background: #ffffff !important;
+    color: #0c1411 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
 
-.fullscreen-qr-close {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--duration-fast) ease, transform var(--duration-fast) var(--ease-spring);
-}
+  .raw-qr-code-item {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
 
-.fullscreen-qr-close:hover {
-  background: var(--bg-elevated);
-  transform: scale(1.1);
-}
-
-.fullscreen-qr-close svg { width: 20px; height: 20px; }
-
-.fullscreen-qr-code {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  background: #ffffff;
-  border-radius: 12px;
-  margin: 16px auto;
-  width: 280px;
-  height: 280px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.fullscreen-qr-id {
-  font-family: monospace;
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--accent-green);
-  margin-top: 12px;
-  letter-spacing: 0.04em;
-}
-
-.fullscreen-qr-meta {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  margin-top: 4px;
-  margin-bottom: 12px;
-}
-
-.fullscreen-qr-hint {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  display: block;
+  .raw-qr-code-item img,
+  .raw-qr-code-item canvas {
+    display: block !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    height: auto !important;
+  }
 }

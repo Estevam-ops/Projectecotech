@@ -13,34 +13,49 @@ const recordForm = $('#recordForm')
 const recordsTable = $('#recordsTable')
 const studentRecordsTable = $('#studentRecordsTable')
 
-let selectedItemId = null
+let selectedItemIds = new Set()
 
 const _updateDeleteButtonState = () => {
-  const btn = $('#deleteSelectedBtn')
+  const deleteBtn = $('#deleteSelectedBtn')
+  const printBtn = $('#printLabels')
 
-  if (!btn) return;
+  const count = selectedItemIds.size
 
-  if (selectedItemId) {
-    btn.disabled = false
-    btn.style.opacity = '1'
-    btn.style.cursor = 'pointer'
-  } else {
-    btn.disabled = true
-    btn.style.opacity = '0.5'
-    btn.style.cursor = 'not-allowed'
+  if (deleteBtn) {
+    if (count > 0) {
+      deleteBtn.disabled = false
+      deleteBtn.style.opacity = '1'
+      deleteBtn.style.cursor = 'pointer'
+      deleteBtn.textContent = count > 1 ? `Excluir (${count})` : 'Excluir Selecionado'
+    } else {
+      deleteBtn.disabled = true
+      deleteBtn.style.opacity = '0.5'
+      deleteBtn.style.cursor = 'not-allowed'
+      deleteBtn.textContent = 'Excluir Selecionado'
+    }
+  }
+
+  if (printBtn) {
+    if (count > 0) {
+      printBtn.textContent = count > 1 ? `Imprimir Etiquetas QR (${count})` : 'Imprimir Etiquetas QR'
+    } else {
+      printBtn.textContent = 'Imprimir Etiquetas QR'
+    }
   }
 }
 
 const _setSelectedRow = (itemId) => {
-  if (selectedItemId === itemId) {
-    selectedItemId = null
+  if (selectedItemIds.has(itemId)) {
+    selectedItemIds.delete(itemId)
   } else {
-    selectedItemId = itemId
+    selectedItemIds.add(itemId)
   }
 
   if (recordsTable) {
     recordsTable.querySelectorAll('tr.selectable-row').forEach((row) => {
-      if (row.getAttribute('data-id') === selectedItemId) {
+      const id = row.getAttribute('data-id')
+
+      if (selectedItemIds.has(id)) {
         row.classList.add('is-selected')
       } else {
         row.classList.remove('is-selected')
@@ -564,7 +579,7 @@ const _render = () => {
     records.forEach((item) => {
       const tr = document.createElement('tr')
       const statusClass = _getStatusClass(item.status)
-      const isSelected = item.id === selectedItemId
+      const isSelected = selectedItemIds.has(item.id)
 
       tr.className = `selectable-row ${isSelected ? 'is-selected' : ''}`
       tr.setAttribute('data-id', item.id)
@@ -1112,377 +1127,158 @@ if (recordForm) {
 
 /* INFO: REPORT CONFIG & PDF GENERATION */
 
-const REPORT_COLORS = {
-  ground: [12, 20, 17],
-  green: [11, 107, 63],
-  lime: [201, 242, 78],
-  paper: [244, 243, 237],
-  zebra: [250, 250, 246],
-  line: [222, 219, 208],
-  ink: [18, 32, 26],
-  muted: [98, 110, 102],
-  white: [255, 255, 255]
+const _getQrDataUrl = (text) => {
+  const temp = document.createElement('div')
+  temp.style.position = 'absolute'
+  temp.style.left = '-9999px'
+  document.body.appendChild(temp)
+
+  new QRCode(temp, { text, width: 250, height: 250, correctLevel: QRCode.CorrectLevel.M })
+
+  const canvas = temp.querySelector('canvas')
+  const img = temp.querySelector('img')
+  let dataUrl = ''
+
+  if (canvas) {
+    dataUrl = canvas.toDataURL('image/png')
+  } else if (img && img.src) {
+    dataUrl = img.src
+  }
+
+  temp.remove()
+  return dataUrl
 }
-
-const REPORT_COLUMNS = [
-  { key: 'index', label: '#', width: 8 },
-  { key: 'id', label: 'ID', width: 44 },
-  { key: 'device', label: 'Aparelho', width: 28 },
-  { key: 'weight', label: 'Peso', width: 18, align: 'right' },
-  { key: 'school', label: 'Escola', width: 36 },
-  { key: 'student', label: 'Aluno', width: 28 },
-  { key: 'status', label: 'Status', width: 20 }
-]
-
 
 const _exportPdf = () => {
   if (!window.jspdf) {
     alert('Biblioteca PDF indisponível. Use a impressão do navegador como alternativa.')
-
     window.print()
+    return;
+  }
 
+  const itemsToExport = selectedItemIds.size > 0
+    ? records.filter((item) => selectedItemIds.has(item.id))
+    : records
+
+  if (itemsToExport.length === 0) {
+    _showToast('Selecione pelo menos um dispositivo para exportar QR Codes.', 'warning')
     return;
   }
 
   const { jsPDF } = window.jspdf
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
+
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
-  const margin = 14
-  const contentW = pageW - margin * 2
-  const now = new Date()
-  const stamp = `${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`
 
-  doc.setProperties({
-    title: 'Relatório EcoTech - Resíduos Eletrônicos',
-    subject: 'Coleta de lixo eletrônico - IFTM Campus Uberaba Parque Tecnológico',
-    author: 'EcoTech IFTM UPT'
+  const cols = 3
+  const rowsPerPage = 4
+  const qrSize = 52
+  const gapX = (pageW - cols * qrSize) / (cols + 1)
+  const gapY = (pageH - rowsPerPage * qrSize) / (rowsPerPage + 1)
+
+  itemsToExport.forEach((item, index) => {
+    if (index > 0 && index % (cols * rowsPerPage) === 0) {
+      doc.addPage()
+    }
+
+    const posOnPage = index % (cols * rowsPerPage)
+    const col = posOnPage % cols
+    const row = Math.floor(posOnPage / cols)
+
+    const x = gapX + col * (qrSize + gapX)
+    const y = gapY + row * (qrSize + gapY)
+
+    const qrDataUrl = _getQrDataUrl(item.id)
+
+    if (qrDataUrl) {
+      doc.addImage(qrDataUrl, 'PNG', x, y, qrSize, qrSize)
+    }
   })
 
-  const fill = (color) => doc.setFillColor(color[0], color[1], color[2])
-  const ink = (color) => doc.setTextColor(color[0], color[1], color[2])
-  const stroke = (color) => doc.setDrawColor(color[0], color[1], color[2])
-
-  const _clip = (value, width) => {
-    let text = value === undefined || value === null || value === '' ? '-' : String(value)
-
-    if (doc.getTextWidth(text) <= width) return text
-
-    while (text.length > 1 && doc.getTextWidth(`${text}...`) > width) {
-      text = text.slice(0, -1)
-    }
-
-    return `${text}...`
-  }
-
-  const _sectionTitle = (label, y) => {
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-
-    ink(REPORT_COLORS.green)
-    doc.text(label.toUpperCase(), margin, y, { charSpace: 0.35 })
-
-    stroke(REPORT_COLORS.line)
-    doc.setLineWidth(0.3)
-    doc.line(margin, y + 2.4, margin + contentW, y + 2.4)
-
-    return y + 9
-  }
-
-  fill(REPORT_COLORS.ground)
-  doc.rect(0, 0, pageW, 31, 'F')
-
-  fill(REPORT_COLORS.lime)
-  doc.rect(0, 31, pageW, 1.4, 'F')
-
-  ink(REPORT_COLORS.lime)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(7)
-  doc.text('ECOTECH · IFTM CAMPUS UBERABA PARQUE TECNOLÓGICO', margin, 12, { charSpace: 0.5 })
-
-  ink(REPORT_COLORS.white)
-  doc.setFontSize(18)
-  doc.text('Relatório de resíduos eletrônicos', margin, 22)
-
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(7.5)
-
-  ink([158, 172, 163])
-  doc.text(`Gerado em ${stamp}`, pageW - margin, 22, { align: 'right' })
-
-  let y = 43
-
-  if (!records.length) {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-
-    ink(REPORT_COLORS.muted)
-    doc.text('Nenhum aparelho cadastrado até o momento.', margin, y)
-  } else {
-    const stats = _calcStats()
-
-    y = _sectionTitle('Resumo da campanha', y)
-
-    const summaryCells = [
-      { label: 'Aparelhos cadastrados', value: String(records.length) },
-      { label: 'Peso total arrecadado', value: `${stats.totalWeight.toFixed(2)} kg` },
-      { label: 'Escolas participantes', value: String(stats.school.length) },
-      { label: 'Alunos envolvidos', value: String(stats.student.length) }
-    ]
-    const gap = 4
-    const cellW = (contentW - gap * 3) / 4
-
-    summaryCells.forEach((cell, index) => {
-      const x = margin + index * (cellW + gap)
-
-      fill(REPORT_COLORS.paper)
-      stroke(REPORT_COLORS.line)
-      doc.setLineWidth(0.3)
-      doc.roundedRect(x, y, cellW, 21, 1.6, 1.6, 'FD')
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(16)
-      ink(REPORT_COLORS.ink)
-      doc.text(_clip(cell.value, cellW - 8), x + 4.5, y + 11)
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(6.8)
-      ink(REPORT_COLORS.muted)
-      doc.text(_clip(cell.label, cellW - 8), x + 4.5, y + 16.6)
-    })
-
-    y += 31
-
-    y = _sectionTitle('Destaques por peso arrecadado', y)
-
-    const groups = [
-      { title: 'Escolas', rows: stats.school.slice(0, 5) },
-      { title: 'Alunos', rows: stats.student.slice(0, 5) }
-    ]
-    const colW = (contentW - 6) / 2
-    let lines = 1
-
-    groups.forEach((group, index) => {
-      const x = margin + index * (colW + 6)
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8.5)
-      ink(REPORT_COLORS.ink)
-      doc.text(group.title, x, y)
-
-      let rowY = y + 6
-
-      if (!group.rows.length) {
-        doc.setFont('helvetica', 'italic')
-        doc.setFontSize(7.5)
-        ink(REPORT_COLORS.muted)
-        doc.text('sem registros', x, rowY)
-      }
-
-      group.rows.forEach(([name, weight], position) => {
-        doc.setFontSize(7.5)
-        doc.setFont('helvetica', 'normal')
-        ink(REPORT_COLORS.muted)
-        doc.text(`${position + 1}.`, x, rowY)
-
-        ink(REPORT_COLORS.ink)
-        doc.text(_clip(name, colW - 24), x + 4.5, rowY)
-
-        doc.setFont('helvetica', 'bold')
-        ink(REPORT_COLORS.green)
-        doc.text(`${weight.toFixed(2)} kg`, x + colW, rowY, { align: 'right' })
-
-        rowY += 5
-      })
-
-      lines = Math.max(lines, group.rows.length || 1)
-    })
-
-    y += 6 + lines * 5 + 7
-
-    y = _sectionTitle(`Registros (${records.length})`, y)
-
-    const drawTableHead = (headY) => {
-      fill(REPORT_COLORS.ground)
-      doc.rect(margin, headY, contentW, 7.4, 'F')
-
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(6.8)
-      ink(REPORT_COLORS.white)
-
-      let x = margin
-
-      REPORT_COLUMNS.forEach((col) => {
-        const right = col.align === 'right'
-
-        doc.text(col.label.toUpperCase(), right ? x + col.width - 2.5 : x + 2.5, headY + 4.9, {
-          align: right ? 'right' : 'left',
-          charSpace: 0.3
-        })
-
-        x += col.width
-      })
-
-      return headY + 7.4
-    }
-
-    y = drawTableHead(y)
-
-    const rowH = 6.6
-
-    records.forEach((item, index) => {
-      if (y + rowH > pageH - 20) {
-        doc.addPage()
-        y = drawTableHead(margin + 2)
-      }
-
-      if (index % 2 === 1) {
-        fill(REPORT_COLORS.zebra)
-        doc.rect(margin, y, contentW, rowH, 'F')
-      }
-
-      stroke(REPORT_COLORS.line)
-      doc.setLineWidth(0.2)
-      doc.line(margin, y + rowH, margin + contentW, y + rowH)
-
-      let x = margin
-
-      REPORT_COLUMNS.forEach((col) => {
-        let value = null
-
-        if (col.key === 'index') value = String(index + 1)
-        else if (col.key === 'weight') value = `${Number(item.weight || 0).toFixed(2)} kg`
-        else value = item[col.key]
-
-        doc.setFont('helvetica', col.key === 'id' ? 'bold' : 'normal')
-        doc.setFontSize(7)
-        ink(col.key === 'index' ? REPORT_COLORS.muted : REPORT_COLORS.ink)
-
-        const right = col.align === 'right'
-
-        doc.text(_clip(value, col.width - 4), right ? x + col.width - 2.5 : x + 2.5, y + 4.4, {
-          align: right ? 'right' : 'left'
-        })
-
-        x += col.width
-      })
-
-      y += rowH
-    })
-
-    if (y + 7.4 > pageH - 20) {
-      doc.addPage()
-      y = margin + 2
-    }
-
-    fill(REPORT_COLORS.paper)
-    doc.rect(margin, y, contentW, 7.4, 'F')
-
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7.2)
-
-    ink(REPORT_COLORS.ink)
-    doc.text(`TOTAL · ${records.length} aparelhos`, margin + 2.5, y + 4.9, { charSpace: 0.3 })
-
-    ink(REPORT_COLORS.green)
-    doc.text(`${stats.totalWeight.toFixed(2)} kg`, margin + contentW - 2.5, y + 4.9, { align: 'right' })
-  }
-
-  const pages = doc.getNumberOfPages()
-
-  for (let page = 1; page <= pages; page += 1) {
-    doc.setPage(page)
-
-    stroke(REPORT_COLORS.line)
-    doc.setLineWidth(0.3)
-    doc.line(margin, pageH - 12.5, pageW - margin, pageH - 12.5)
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-
-    ink(REPORT_COLORS.muted)
-    doc.text('EcoTech IFTM UPT · Coleta de resíduos eletrônicos', margin, pageH - 8)
-    doc.text(`Página ${page} de ${pages}`, pageW - margin, pageH - 8, { align: 'right' })
-  }
-
-  doc.save(`relatorio-ecotech-${now.toISOString().slice(0, 10)}.pdf`)
+  doc.save(`qrcodes-${new Date().toISOString().slice(0, 10)}.pdf`)
+  _showToast(`PDF com ${itemsToExport.length} QR Code(s) gerado com sucesso!`, 'success')
 }
 
 
+const _printQrLabels = () => {
+  const itemsToPrint = selectedItemIds.size > 0
+    ? records.filter((item) => selectedItemIds.has(item.id))
+    : records
+
+  if (itemsToPrint.length === 0) {
+    _showToast('Selecione pelo menos um dispositivo na tabela para imprimir.', 'warning')
+    return;
+  }
+
+  let printContainer = $('#printableQrLabels')
+
+  if (!printContainer) {
+    printContainer = document.createElement('div')
+    printContainer.id = 'printableQrLabels'
+    printContainer.className = 'printable-qr-labels'
+    document.body.appendChild(printContainer)
+  }
+
+  printContainer.innerHTML = ''
+
+  itemsToPrint.forEach((item) => {
+    const qrBox = document.createElement('div')
+    qrBox.className = 'raw-qr-code-item'
+    printContainer.appendChild(qrBox)
+
+    _addQr(qrBox, item.id, 160)
+  })
+
+  window.print()
+}
+
 if ($('#exportPdf')) $('#exportPdf').addEventListener('click', _exportPdf)
-if ($('#printLabels')) $('#printLabels').addEventListener('click', () => window.print())
+if ($('#printLabels')) $('#printLabels').addEventListener('click', _printQrLabels)
 if ($('#deleteSelectedBtn')) {
   $('#deleteSelectedBtn').addEventListener('click', async () => {
-    if (!selectedItemId) return;
+    if (selectedItemIds.size === 0) return;
 
-    const item = records.find((r) => r.id === selectedItemId)
-    const label = item ? `"${item.device}" (${item.id})` : `ID ${selectedItemId}`
+    const count = selectedItemIds.size
+    const confirmMsg = count === 1
+      ? 'Tem certeza que deseja excluir o dispositivo selecionado?'
+      : `Tem certeza que deseja excluir os ${count} dispositivos selecionados?`
 
-    if (!confirm(`Tem certeza que deseja excluir o dispositivo ${label}?`)) {
-      return;
-    }
+    if (!confirm(confirmMsg)) return;
 
-    try {
-      const token = sessionStorage.getItem('authToken')
-      const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(selectedItemId)}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-      })
+    const idsToDelete = Array.from(selectedItemIds)
+    const token = sessionStorage.getItem('authToken')
 
-      let data = {}
-
+    for (const id of idsToDelete) {
       try {
-        data = await res.json()
-      } catch {
-        data = {}
-      }
-
-      if (!res.ok) {
-        /* Fallback endpoint attempt: POST /items/delete */
-        const fallbackRes = await globalThis.fetch(`${SERVER_URL}/items/delete`, {
-          method: 'POST',
+        const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(id)}`, {
+          method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-          },
-          body: JSON.stringify({ id: selectedItemId })
+          }
         })
 
-        const fallbackData = await fallbackRes.json().catch(() => ({}))
-
-        if (!fallbackRes.ok) {
-          /* Local deletion fallback if server endpoint is offline or 404 */
-          records = records.filter((r) => r.id !== selectedItemId)
-          selectedItemId = null
-          _updateDeleteButtonState()
-          _render()
-          _showToast(`Dispositivo ${label} removido.`, 'success')
-
-          return;
+        if (!res.ok) {
+          await globalThis.fetch(`${SERVER_URL}/items/delete`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ id })
+          }).catch(() => ({}))
         }
-
-        _showToast(fallbackData.message || `Aparelho ${label} excluído com sucesso!`, 'success')
-      } else {
-        _showToast(data.message || `Aparelho ${label} excluído com sucesso!`, 'success')
+      } catch (err) {
+        console.warn('Error deleting item on server:', err)
       }
-
-      selectedItemId = null
-      _updateDeleteButtonState()
-      await _fetchRecords()
-    } catch (err) {
-      console.warn('Error deleting item on server, removing locally:', err)
-      records = records.filter((r) => r.id !== selectedItemId)
-      selectedItemId = null
-      _updateDeleteButtonState()
-      _render()
-      _showToast(`Dispositivo ${label} removido localmente.`, 'warning')
     }
+
+    records = records.filter((r) => !selectedItemIds.has(r.id))
+    selectedItemIds.clear()
+    _updateDeleteButtonState()
+    _render()
+    _showToast(`${count} dispositivo(s) excluído(s) com sucesso!`, 'success')
   })
 }
 
