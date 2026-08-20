@@ -4,15 +4,32 @@ const $ = (selector) => document.querySelector(selector)
 const menuButton = $('.menu-button')
 const menu = $('#menu')
 const menuOverlay = $('#menuOverlay')
+const authCard = $('#authCard')
 const loginForm = $('#loginForm')
+const registerForm = $('#registerForm')
 const adminArea = $('#adminArea')
+const studentArea = $('#studentArea')
 const recordForm = $('#recordForm')
 const recordsTable = $('#recordsTable')
-const labels = $('#labels')
+const studentRecordsTable = $('#studentRecordsTable')
 
 let records = []
+let registeredSchools = [
+  { id: 1, name: 'Escola Municipal Uberaba' },
+  { id: 2, name: 'Escola Estadual Triângulo' },
+  { id: 3, name: 'IFTM Campus Uberaba Parque Tecnológico' },
+  { id: 4, name: 'Escola Municipal Marechal Humberto' }
+]
 let serverDown = false
-let authToken = null
+let authToken = sessionStorage.getItem('authToken') || null
+let currentUser = null
+
+try {
+  const savedUser = sessionStorage.getItem('currentUser')
+  if (savedUser) currentUser = JSON.parse(savedUser)
+} catch {
+  currentUser = null
+}
 
 
 const _escapeHtml = (value) => {
@@ -57,9 +74,192 @@ const _createId = () => {
 }
 
 
-/* INFO: Single-pass stats calculator for total weight and school/classroom/student rankings */
+/* INFO: Centered Fullscreen QR Code Viewer */
+const _openFullscreenQr = (item) => {
+  let overlay = $('#fullscreenQrOverlay')
+
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.id = 'fullscreenQrOverlay'
+    overlay.className = 'fullscreen-qr-overlay hidden'
+    overlay.setAttribute('role', 'dialog')
+    overlay.setAttribute('aria-modal', 'true')
+    overlay.setAttribute('aria-label', 'Visualização de QR Code em tela cheia')
+    overlay.innerHTML = `
+      <div class="fullscreen-qr-card">
+        <button class="fullscreen-qr-close" id="closeFullscreenQr" type="button" aria-label="Fechar visualização">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <span class="section-label">Registro EcoTech</span>
+        <div class="fullscreen-qr-code" id="fullscreenQrCode"></div>
+        <div class="fullscreen-qr-id" id="fullscreenQrId"></div>
+        <p class="fullscreen-qr-meta" id="fullscreenQrMeta"></p>
+        <span class="fullscreen-qr-hint">Clique em qualquer lugar para fechar</span>
+      </div>`
+
+    document.body.appendChild(overlay)
+
+    const _close = () => {
+      overlay.classList.remove('is-open')
+      setTimeout(() => overlay.classList.add('hidden'), 200)
+    }
+
+    overlay.addEventListener('click', _close)
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        _close()
+      }
+    })
+  }
+
+  const codeContainer = $('#fullscreenQrCode')
+  const idEl = $('#fullscreenQrId')
+  const metaEl = $('#fullscreenQrMeta')
+
+  if (idEl) idEl.textContent = item.id
+  if (metaEl) metaEl.textContent = `${item.device} ${item.school ? '• ' + item.school : ''}`
+
+  _addQr(codeContainer, item.id, 260)
+
+  overlay.classList.remove('hidden')
+  requestAnimationFrame(() => overlay.classList.add('is-open'))
+}
+
+
+/* INFO: Server-side school deletion with product dependency check */
+const _deleteSchool = async (schoolObj) => {
+  const name = typeof schoolObj === 'string' ? schoolObj : schoolObj.name
+  const id = typeof schoolObj === 'object' ? schoolObj.id : null
+
+  if (!confirm(`Deseja realmente remover a escola "${name}"?`)) {
+    return;
+  }
+
+  try {
+    const url = id ? `${SERVER_URL}/schools/${id}` : `${SERVER_URL}/schools/delete`
+    const res = await globalThis.fetch(url, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, name })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (res.ok) {
+      _showToast(data.message || `Escola "${name}" excluída com sucesso!`, 'success')
+      await _fetchSchools()
+
+      return;
+    }
+
+    _showToast(data.error || 'Erro ao excluir escola.', 'error')
+  } catch (err) {
+    console.warn('Failed to delete school:', err)
+
+    /* Local fallback check if server offline */
+    const isLinkedLocally = records.some((r) => r.school.toLowerCase() === name.toLowerCase())
+
+    if (isLinkedLocally) {
+      _showToast(`Não é possível excluir a escola "${name}" pois existem dispositivos vinculados a ela.`, 'error')
+
+      return;
+    }
+
+    registeredSchools = registeredSchools.filter((s) => (typeof s === 'string' ? s : s.name).toLowerCase() !== name.toLowerCase())
+    _renderSchoolsUI()
+    _showToast(`Escola "${name}" removida localmente.`, 'warning')
+  }
+}
+
+
+/* INFO: Fetch and render registered schools list & autocomplete datalist */
+const _renderSchoolsUI = () => {
+  const datalist = $('#schoolOptions')
+
+  if (datalist) {
+    datalist.innerHTML = ''
+    registeredSchools.forEach((s) => {
+      const name = typeof s === 'string' ? s : s.name
+      const option = document.createElement('option')
+
+      option.value = name
+      datalist.appendChild(option)
+    })
+  }
+
+  const schoolsList = $('#schoolsList')
+
+  if (schoolsList) {
+    schoolsList.innerHTML = ''
+
+    if (!registeredSchools.length) {
+      schoolsList.innerHTML = '<span style="font-size: var(--text-xs); color: var(--text-muted);">Nenhuma escola cadastrada.</span>'
+      return;
+    }
+
+    registeredSchools.forEach((s) => {
+      const name = typeof s === 'string' ? s : s.name
+      const item = document.createElement('div')
+
+      item.style.display = 'flex'
+      item.style.alignItems = 'center'
+      item.style.justifyContent = 'space-between'
+      item.style.gap = '8px'
+      item.style.padding = '6px 10px'
+      item.style.background = 'var(--bg-primary)'
+      item.style.border = '1px solid var(--border)'
+      item.style.borderRadius = '8px'
+      item.style.fontSize = 'var(--text-xs)'
+
+      const textSpan = document.createElement('span')
+
+      textSpan.style.fontWeight = '600'
+      textSpan.style.color = 'var(--text-primary)'
+      textSpan.style.overflow = 'hidden'
+      textSpan.style.textOverflow = 'ellipsis'
+      textSpan.style.whiteSpace = 'nowrap'
+      textSpan.textContent = name
+
+      const delBtn = document.createElement('button')
+
+      delBtn.type = 'button'
+      delBtn.className = 'button danger'
+      delBtn.style.minHeight = '26px'
+      delBtn.style.padding = '2px 8px'
+      delBtn.style.fontSize = '0.7rem'
+      delBtn.textContent = 'Excluir'
+      delBtn.addEventListener('click', () => _deleteSchool(s))
+
+      item.appendChild(textSpan)
+      item.appendChild(delBtn)
+      schoolsList.appendChild(item)
+    })
+  }
+}
+
+const _fetchSchools = async () => {
+  try {
+    const res = await globalThis.fetch(`${SERVER_URL}/schools`)
+
+    if (res.ok) {
+      const data = await res.json()
+
+      if (Array.isArray(data.schools) && data.schools.length > 0) {
+        registeredSchools = data.schools
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch schools from server:', err)
+  }
+
+  _renderSchoolsUI()
+}
+
+
+/* INFO: Single-pass stats calculator for total weight and school/student rankings */
 const _calcStats = () => {
-  const totals = { school: new Map(), classroom: new Map(), student: new Map() }
+  const totals = { school: new Map(), student: new Map() }
   let totalWeight = 0
 
   records.forEach((item) => {
@@ -67,7 +267,7 @@ const _calcStats = () => {
 
     totalWeight += weight
 
-    ;['school', 'classroom', 'student'].forEach((field) => {
+    ;['school', 'student'].forEach((field) => {
       const val = item[field]
 
       if (val) totals[field].set(val, (totals[field].get(val) || 0) + weight)
@@ -77,30 +277,36 @@ const _calcStats = () => {
   return {
     totalWeight,
     school: [...totals.school.entries()].sort((a, b) => b[1] - a[1]),
-    classroom: [...totals.classroom.entries()].sort((a, b) => b[1] - a[1]),
     student: [...totals.student.entries()].sort((a, b) => b[1] - a[1])
   }
 }
 
 
 const _addQr = (target, text, size) => {
+  if (!target) return;
+
   target.innerHTML = ''
 
   if (window.QRCode) {
     new QRCode(target, { text, width: size, height: size, correctLevel: QRCode.CorrectLevel.M })
+
+    /* INFO: QRCode.js generates canvas + img. Retain only img to avoid duplicate QR display */
+    const canvas = target.querySelector('canvas')
+    const img = target.querySelector('img')
+
+    if (canvas && img) {
+      canvas.remove()
+    } else if (canvas) {
+      canvas.style.display = 'block'
+      canvas.style.margin = '0 auto'
+    }
   } else {
     target.textContent = text
   }
 }
 
 
-const _demoRecords = () => {
-  return [
-    { id: 'ECO-20260727090000-A1B2C', device: 'Celular quebrado', weight: 0.18, school: 'Escola Municipal Uberaba', classroom: '8º A', student: 'Ana Clara', status: 'Na escola', createdAt: new Date().toISOString() },
-    { id: 'ECO-20260727090500-D3E4F', device: 'Notebook antigo', weight: 2.4, school: 'Escola Municipal Uberaba', classroom: '8º A', student: 'João Pedro', status: 'No IFTM UPT', createdAt: new Date().toISOString() },
-    { id: 'ECO-20260727091000-G5H6I', device: 'Impressora', weight: 5.2, school: 'Escola Estadual Triângulo', classroom: '1º B', student: 'Mariana Lima', status: 'Coletado pela Cooperu', createdAt: new Date().toISOString() }
-  ]
-}
+const _demoRecords = () => []
 
 
 const _getStatusClass = (status = '') => {
@@ -111,6 +317,93 @@ const _getStatusClass = (status = '') => {
   if (lower.includes('iftm')) return 'status-no-iftm'
 
   return 'status-pendente'
+}
+
+
+/* INFO: Render student portal table and metrics for logged-in student */
+const _renderStudentPortal = () => {
+  if (!studentArea) return;
+
+  const username = (currentUser && (currentUser.username || currentUser.email)) || 'Aluno'
+  const school = (currentUser && currentUser.school) || 'Escola Municipal Uberaba'
+
+  if ($('#studentWelcome')) $('#studentWelcome').textContent = `Bem-vindo(a), ${username}!`
+  if ($('#studentSub')) $('#studentSub').textContent = `Escola parceira: ${school}`
+
+  /* Filter items matching student's username or email */
+  const myItems = records.filter((item) => {
+    const owner = (item.student || '').toLowerCase()
+    const target = username.toLowerCase()
+
+    return owner === target || target.includes(owner) || owner.includes(target)
+  })
+
+  const displayList = myItems
+  const totalWeight = displayList.reduce((acc, curr) => acc + Number(curr.weight || 0), 0)
+
+  if ($('#studentDeviceCount')) $('#studentDeviceCount').textContent = displayList.length
+  if ($('#studentTotalWeight')) $('#studentTotalWeight').textContent = `${totalWeight.toFixed(2)} kg`
+
+  /* Dynamic ring progress indicators */
+  const fill1 = $('#studentRingFill1')
+  const val1 = $('#studentRingValue1')
+  const fill2 = $('#studentRingFill2')
+  const val2 = $('#studentRingValue2')
+
+  const countPct = Math.min(100, Math.round((displayList.length / 5) * 100))
+  const weightPct = Math.min(100, Math.round((totalWeight / 10) * 100))
+
+  if (fill1) fill1.setAttribute('stroke-dasharray', `${countPct}, 100`)
+  if (val1) val1.textContent = `${countPct}%`
+  if (fill2) fill2.setAttribute('stroke-dasharray', `${weightPct}, 100`)
+  if (val2) val2.textContent = `${totalWeight.toFixed(2)}kg`
+
+  /* Dynamic milestone badge unlock logic based on actual student contribution */
+  const badgeBronze = $('#badgeBronze')
+  const badgePrata = $('#badgePrata')
+  const badgeOuro = $('#badgeOuro')
+  const badgeEsmeralda = $('#badgeEsmeralda')
+
+  if (badgeBronze) badgeBronze.className = `badge-card ${totalWeight >= 1.0 ? 'is-unlocked' : 'is-locked'}`
+  if (badgePrata) badgePrata.className = `badge-card ${totalWeight >= 2.5 ? 'is-unlocked' : 'is-locked'}`
+  if (badgeOuro) badgeOuro.className = `badge-card ${totalWeight >= 10.0 ? 'is-unlocked' : 'is-locked'}`
+  if (badgeEsmeralda) badgeEsmeralda.className = `badge-card ${totalWeight >= 25.0 ? 'is-unlocked' : 'is-locked'}`
+
+  if (!studentRecordsTable) return;
+
+  studentRecordsTable.innerHTML = ''
+
+  if (!displayList.length) {
+    studentRecordsTable.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento.</td></tr>`
+
+    return;
+  }
+
+  displayList.forEach((item) => {
+    const tr = document.createElement('tr')
+    const statusClass = _getStatusClass(item.status)
+
+    tr.innerHTML = `
+      <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
+      <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
+      <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
+      <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
+
+    studentRecordsTable.appendChild(tr)
+    const qrCell = tr.querySelector('.qr-cell')
+
+    _addQr(qrCell, item.id, 48)
+
+    if (qrCell) {
+      qrCell.addEventListener('click', () => _openFullscreenQr(item))
+      qrCell.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          _openFullscreenQr(item)
+        }
+      })
+    }
+  })
 }
 
 
@@ -134,8 +427,7 @@ const _render = () => {
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
-    recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
-    labels.innerHTML = ''
+    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
 
     return;
   }
@@ -149,7 +441,6 @@ const _render = () => {
 
   const rankTargets = [
     { target: $('#schoolRanking'), rows: stats.school },
-    { target: $('#classRanking'), rows: stats.classroom },
     { target: $('#studentRanking'), rows: stats.student }
   ]
 
@@ -183,43 +474,59 @@ const _render = () => {
     })
   })
 
-  recordsTable.innerHTML = ''
-  labels.innerHTML = ''
+  if (recordsTable) recordsTable.innerHTML = ''
 
-  if (!records.length) {
+  if (recordsTable && !records.length) {
     recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+  } else if (recordsTable) {
+    records.forEach((item) => {
+      const tr = document.createElement('tr')
+      const statusClass = _getStatusClass(item.status)
 
-    return;
+      tr.innerHTML = `
+        <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
+        <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
+        <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
+        <td data-label="Escola">${_escapeHtml(item.school)}</td>
+        <td data-label="Aluno">${_escapeHtml(item.student)}</td>
+        <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
+        <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>
+        <td data-label="Ação" style="text-align: center; vertical-align: middle;">
+          <button class="button danger btn-delete-item" data-id="${_escapeHtml(item.id)}" style="padding: 4px 10px; font-size: 0.75rem; min-height: 32px;">Excluir</button>
+        </td>`
+
+      recordsTable.appendChild(tr)
+      const qrCell = tr.querySelector('.qr-cell')
+
+      _addQr(qrCell, item.id, 48)
+
+      if (qrCell) {
+        qrCell.addEventListener('click', () => _openFullscreenQr(item))
+        qrCell.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            _openFullscreenQr(item)
+          }
+        })
+      }
+    })
+
+    if (!recordsTable._hasDeleteListener) {
+      recordsTable._hasDeleteListener = true
+      recordsTable.addEventListener('click', (e) => {
+        const deleteBtn = e.target.closest('.btn-delete-item')
+
+        if (deleteBtn) {
+          const itemId = deleteBtn.getAttribute('data-id')
+          const item = records.find((r) => r.id === itemId)
+
+          _handleDeleteItemClick(itemId, item ? item.device : '')
+        }
+      })
+    }
   }
 
-  records.forEach((item) => {
-    const tr = document.createElement('tr')
-    const statusClass = _getStatusClass(item.status)
-
-    tr.innerHTML = `
-      <td><strong>${_escapeHtml(item.id)}</strong></td>
-      <td>${_escapeHtml(item.device)}</td>
-      <td><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
-      <td>${_escapeHtml(item.school)}</td>
-      <td>${_escapeHtml(item.classroom)}</td>
-      <td>${_escapeHtml(item.student)}</td>
-      <td><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
-      <td class="qr-cell"></td>`
-
-    recordsTable.appendChild(tr)
-
-    _addQr(tr.querySelector('.qr-cell'), item.id, 74)
-
-    const card = document.createElement('article')
-
-    card.className = 'label-card'
-    card.setAttribute('role', 'listitem')
-    card.innerHTML = `<strong>${_escapeHtml(item.id)}</strong><div class="qr"></div><small>${_escapeHtml(item.device)} • ${_escapeHtml(item.school)} • ${_escapeHtml(item.student)}</small>`
-
-    labels.appendChild(card)
-
-    _addQr(card.querySelector('.qr'), item.id, 128)
-  })
+  _renderStudentPortal()
 }
 
 
@@ -238,7 +545,6 @@ const _fetchRecords = async () => {
           device: item.name || '',
           weight: Number(item.weight || 0),
           school: item.school || '',
-          classroom: item.description || '',
           student: item.owner || '',
           status: item.state || 'Na escola',
           createdAt: item.createdAt || item.created_at || new Date().toISOString()
@@ -262,186 +568,447 @@ const _fetchRecords = async () => {
 
 
 const _toggleMenu = (open) => {
+  if (!menu) return;
+
   const isOpen = open !== undefined ? open : menu.classList.toggle('open')
 
   if (isOpen) {
     menu.classList.add('open')
     if (menuOverlay) menuOverlay.classList.add('is-open')
-    menuButton.setAttribute('aria-expanded', 'true')
+    if (menuButton) menuButton.setAttribute('aria-expanded', 'true')
   } else {
     menu.classList.remove('open')
     if (menuOverlay) menuOverlay.classList.remove('is-open')
-    menuButton.setAttribute('aria-expanded', 'false')
+    if (menuButton) menuButton.setAttribute('aria-expanded', 'false')
   }
 }
 
-menuButton.addEventListener('click', () => _toggleMenu())
+if (menuButton) {
+  menuButton.addEventListener('click', () => _toggleMenu())
+}
 
 if (menuOverlay) {
   menuOverlay.addEventListener('click', () => _toggleMenu(false))
 }
 
 
-loginForm.addEventListener('submit', async (event) => {
-  event.preventDefault()
+/* INFO: Auth Tab Sliding Pill Indicator & Switcher */
 
-  const submitBtn = loginForm.querySelector('button[type="submit"]')
-  const emailInput = $('#email')
-  const email = emailInput.value.trim()
-  const passwordInput = $('#password')
-  const password = passwordInput.value
+const _updateAuthTabIndicator = () => {
+  const indicator = $('#authTabIndicator')
+  const activeTab = $('.auth-tab.is-active')
 
-  [emailInput, passwordInput].forEach((input) => input.classList.remove('is-invalid'))
+  if (!indicator || !activeTab) return;
 
-  if (!email) {
-    emailInput.classList.add('is-invalid')
-    emailInput.addEventListener('input', () => emailInput.classList.remove('is-invalid'), { once: true })
+  indicator.style.transform = `translateX(${activeTab.offsetLeft}px)`
+  indicator.style.width = `${activeTab.offsetWidth}px`
+}
 
-    return;
+const _switchAuthMode = (mode) => {
+  const tabLogin = $('#tabLogin')
+  const tabRegister = $('#tabRegister')
+
+  if (mode === 'register') {
+    if (tabLogin) tabLogin.classList.remove('is-active')
+    if (tabRegister) tabRegister.classList.add('is-active')
+    if (loginForm) loginForm.classList.add('hidden')
+    if (registerForm) registerForm.classList.remove('hidden')
+  } else {
+    if (tabRegister) tabRegister.classList.remove('is-active')
+    if (tabLogin) tabLogin.classList.add('is-active')
+    if (registerForm) registerForm.classList.add('hidden')
+    if (loginForm) loginForm.classList.remove('hidden')
   }
 
-  if (submitBtn) submitBtn.classList.add('is-loading')
+  _updateAuthTabIndicator()
+}
 
-  try {
-    const res = await globalThis.fetch(`${SERVER_URL}/login`, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password })
-    })
+if ($('#tabLogin')) $('#tabLogin').addEventListener('click', () => _switchAuthMode('login'))
+if ($('#tabRegister')) $('#tabRegister').addEventListener('click', () => _switchAuthMode('register'))
+if ($('#switchToRegister')) $('#switchToRegister').addEventListener('click', () => _switchAuthMode('register'))
+if ($('#switchToLogin')) $('#switchToLogin').addEventListener('click', () => _switchAuthMode('login'))
 
-    if (res.ok) {
-      const data = await res.json()
+window.addEventListener('resize', _updateAuthTabIndicator, { passive: true })
+document.addEventListener('DOMContentLoaded', () => {
+  _updateAuthTabIndicator()
+  _fetchSchools()
+})
 
-      if (data.token) {
-        authToken = data.token
-      }
 
-      loginForm.classList.add('hidden')
-      adminArea.classList.remove('hidden')
-      $('#loginMessage').textContent = ''
+/* INFO: School Registration Handler (Admin) */
 
-      _showToast('Autenticação realizada com sucesso!', 'success')
-      await _fetchRecords()
+const schoolForm = $('#schoolForm')
+
+if (schoolForm) {
+  schoolForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const nameInput = $('#newSchoolName')
+    const schoolName = nameInput ? nameInput.value.trim() : ''
+
+    if (!schoolName) return;
+
+    const exists = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === schoolName.toLowerCase())
+
+    if (exists) {
+      _showToast('Esta escola já está cadastrada.', 'error')
 
       return;
     }
 
-    const errData = await res.json().catch(() => ({}))
-    const errorMsg = errData.error || 'Login inválido.'
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/schools`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: schoolName, city: 'Uberaba' })
+      })
 
-    $('#loginMessage').textContent = errorMsg
-    _showToast(errorMsg, 'error')
-  } catch (err) {
-    console.error('Login request failed:', err)
+      if (res.ok) {
+        _showToast('Escola cadastrada com sucesso!', 'success')
+        if (nameInput) nameInput.value = ''
+        await _fetchSchools()
 
-    $('#loginMessage').textContent = 'Servidor offline. Não foi possível conectar.'
-    _showToast('Servidor offline. Não foi possível conectar.', 'error')
-  } finally {
-    if (submitBtn) submitBtn.classList.remove('is-loading')
-  }
-})
+        return;
+      }
 
+      const errData = await res.json().catch(() => ({}))
+      _showToast(errData.error || 'Erro ao cadastrar escola.', 'error')
+    } catch (err) {
+      console.warn('Failed to post new school:', err)
 
-$('#logoutButton').addEventListener('click', () => {
-  authToken = null
-
-  adminArea.classList.add('hidden')
-  loginForm.classList.remove('hidden')
-  _showToast('Sessão encerrada com sucesso.', 'success')
-})
-
-
-recordForm.addEventListener('submit', async (event) => {
-  event.preventDefault()
-
-  const submitBtn = recordForm.querySelector('button[type="submit"]')
-  const textInputs = [$('#device'), $('#school'), $('#classroom'), $('#student')]
-  const weightInput = $('#weight')
-
-  textInputs.concat(weightInput).forEach((input) => {
-    input.classList.remove('is-invalid')
-    input.setCustomValidity('')
+      registeredSchools.push({ id: Date.now(), name: schoolName })
+      _renderSchoolsUI()
+      if (nameInput) nameInput.value = ''
+      _showToast('Escola adicionada localmente!', 'warning')
+    }
   })
+}
 
-  const blankInput = textInputs.find((input) => !input.value.trim())
 
-  if (blankInput) {
-    blankInput.classList.add('is-invalid')
-    blankInput.setCustomValidity('Preencha este campo com um texto válido.')
-    blankInput.reportValidity()
-    blankInput.addEventListener('input', () => blankInput.classList.remove('is-invalid'), { once: true })
+/* INFO: Student Registration Form Submission */
 
-    return;
-  }
+if (registerForm) {
+  registerForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
 
-  const weight = Number(weightInput.value)
+    const submitBtn = registerForm.querySelector('button[type="submit"]')
+    const emailInput = $('#regEmail')
+    const schoolInput = $('#regSchool')
+    const gradeInput = $('#regGrade')
+    const passwordInput = $('#regPassword')
 
-  if (!Number.isFinite(weight) || weight <= 0) {
-    weightInput.classList.add('is-invalid')
-    weightInput.setCustomValidity('Informe um peso maior que zero.')
-    weightInput.reportValidity()
-    weightInput.addEventListener('input', () => weightInput.classList.remove('is-invalid'), { once: true })
+    const email = emailInput ? emailInput.value.trim() : ''
+    const school = schoolInput ? schoolInput.value.trim() : ''
+    const grade = gradeInput ? gradeInput.value.trim() : ''
+    const password = passwordInput ? passwordInput.value : ''
 
-    return;
-  }
+    /* INFO: Strict Validation - Student registration school must match a registered school */
+    const isSchoolValid = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === school.toLowerCase())
 
-  const record = {
-    id: _createId(),
-    device: $('#device').value.trim(),
-    weight,
-    school: $('#school').value.trim(),
-    classroom: $('#classroom').value.trim(),
-    student: $('#student').value.trim(),
-    status: $('#status').value,
-    createdAt: new Date().toISOString()
-  }
+    if (!isSchoolValid) {
+      if (schoolInput) {
+        schoolInput.classList.add('is-invalid')
+        schoolInput.setCustomValidity('Escola não cadastrada. Selecione uma escola válida.')
+        schoolInput.reportValidity()
+        schoolInput.addEventListener('input', () => {
+          schoolInput.classList.remove('is-invalid')
+          schoolInput.setCustomValidity('')
+        }, { once: true })
+      }
 
-  if (submitBtn) submitBtn.classList.add('is-loading')
+      _showToast('A escola informada não está cadastrada no sistema. Selecione uma escola autorizada.', 'error')
 
-  try {
-    if (authToken) {
-      try {
-        const res = await globalThis.fetch(`${SERVER_URL}/items`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            name: record.device,
-            owner: record.student,
-            weight: record.weight,
-            state: record.status,
-            school: record.school,
-            description: record.classroom
-          })
+      return;
+    }
+
+    if (submitBtn) submitBtn.classList.add('is-loading')
+
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: email,
+          email,
+          school,
+          grade,
+          password,
+          role: 'user'
         })
+      })
 
-        if (res.ok) {
-          await _fetchRecords()
-          recordForm.reset()
-          _showToast('Dispositivo registrado com sucesso no servidor!', 'success')
+      if (res.ok) {
+        _showToast('Conta criada com sucesso! Faça login para continuar.', 'success')
+        registerForm.reset()
+        _switchAuthMode('login')
+        if ($('#email')) $('#email').value = email
+
+        return;
+      }
+
+      const errData = await res.json().catch(() => ({}))
+      const errorMsg = errData.error || 'Erro ao registrar conta.'
+
+      if ($('#registerMessage')) $('#registerMessage').textContent = errorMsg
+      _showToast(errorMsg, 'error')
+    } catch (err) {
+      console.error('Registration failed:', err)
+
+      if ($('#registerMessage')) $('#registerMessage').textContent = 'Servidor offline. Tente novamente mais tarde.'
+      _showToast('Servidor offline. Não foi possível conectar.', 'error')
+    } finally {
+      if (submitBtn) submitBtn.classList.remove('is-loading')
+    }
+  })
+}
+
+
+/* INFO: Login Form Submission */
+
+if (loginForm) {
+  loginForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const submitBtn = loginForm.querySelector('button[type="submit"]')
+    const emailInput = $('#email')
+    const email = emailInput ? emailInput.value.trim() : ''
+    const passwordInput = $('#password')
+    const password = passwordInput ? passwordInput.value : ''
+
+    if (emailInput && passwordInput) {
+      [emailInput, passwordInput].forEach((input) => input.classList.remove('is-invalid'))
+    }
+
+    if (!email && emailInput) {
+      emailInput.classList.add('is-invalid')
+      emailInput.addEventListener('input', () => emailInput.classList.remove('is-invalid'), { once: true })
+
+      return;
+    }
+
+    if (submitBtn) submitBtn.classList.add('is-loading')
+
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/login`, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: email, password })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+
+        if (data.token) {
+          authToken = data.token
+          sessionStorage.setItem('authToken', data.token)
+        }
+
+        currentUser = data.user || { username: email, admin: false }
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser))
+
+        if (currentUser.admin || currentUser.role === 'admin') {
+          _showToast('Autenticação de administrador realizada!', 'success')
+          window.location.href = 'admin.html'
+        } else {
+          _showToast(`Bem-vindo(a), ${currentUser.username}!`, 'success')
+          window.location.href = 'user.html'
+        }
+
+        return;
+      }
+
+      const errData = await res.json().catch(() => ({}))
+      const errorMsg = errData.error || 'Credenciais inválidas.'
+
+      if ($('#loginMessage')) $('#loginMessage').textContent = errorMsg
+      _showToast(errorMsg, 'error')
+    } catch (err) {
+      console.error('Login request failed:', err)
+
+      /* Local admin demo login fallback when backend is offline */
+      if (email === 'admin@ecotech.local' && password === 'ecotech') {
+        currentUser = { username: email, admin: true, role: 'admin' }
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser))
+        _showToast('Modo demonstração offline iniciado.', 'success')
+        window.location.href = 'admin.html'
+
+        return;
+      }
+
+      if ($('#loginMessage')) $('#loginMessage').textContent = 'Servidor offline. Não foi possível conectar.'
+      _showToast('Servidor offline. Não foi possível conectar.', 'error')
+    } finally {
+      if (submitBtn) submitBtn.classList.remove('is-loading')
+    }
+  })
+}
+
+
+const _logout = () => {
+  authToken = null
+  currentUser = null
+  sessionStorage.removeItem('authToken')
+  sessionStorage.removeItem('currentUser')
+
+  _showToast('Sessão encerrada com sucesso.', 'success')
+  window.location.href = 'session.html'
+}
+
+if ($('#logoutButton')) $('#logoutButton').addEventListener('click', _logout)
+if ($('#logoutButtonNav')) $('#logoutButtonNav').addEventListener('click', _logout)
+if ($('#studentLogoutButton')) $('#studentLogoutButton').addEventListener('click', _logout)
+if ($('#studentLogoutButtonNav')) $('#studentLogoutButtonNav').addEventListener('click', _logout)
+
+
+/* INFO: Admin Device Registration Form */
+
+if (recordForm) {
+  recordForm.addEventListener('submit', async (event) => {
+    event.preventDefault()
+
+    const submitBtn = recordForm.querySelector('button[type="submit"]')
+    const textInputs = [$('#device'), $('#school'), $('#student')].filter(Boolean)
+    const weightInput = $('#weight')
+    const schoolInput = $('#school')
+    const studentInput = $('#student')
+
+    textInputs.concat(weightInput).forEach((input) => {
+      if (input) {
+        input.classList.remove('is-invalid')
+        input.setCustomValidity('')
+      }
+    })
+
+    const blankInput = textInputs.find((input) => !input.value.trim())
+
+    if (blankInput) {
+      blankInput.classList.add('is-invalid')
+      blankInput.setCustomValidity('Preencha este campo com um texto válido.')
+      blankInput.reportValidity()
+      blankInput.addEventListener('input', () => blankInput.classList.remove('is-invalid'), { once: true })
+
+      return;
+    }
+
+    /* INFO: Strict validation 1 - School must match a registered school */
+    const enteredSchool = schoolInput ? schoolInput.value.trim() : ''
+    const isSchoolValid = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredSchool.toLowerCase())
+
+    if (!isSchoolValid) {
+      if (schoolInput) {
+        schoolInput.classList.add('is-invalid')
+        schoolInput.setCustomValidity('Escola não cadastrada. Selecione ou cadastre uma escola válida.')
+        schoolInput.reportValidity()
+        schoolInput.addEventListener('input', () => {
+          schoolInput.classList.remove('is-invalid')
+          schoolInput.setCustomValidity('')
+        }, { once: true })
+      }
+
+      _showToast('A escola informada não está cadastrada. Cadastre a escola primeiro ou selecione uma existente.', 'error')
+
+      return;
+    }
+
+    /* INFO: Strict validation 2 - Student email/username must exist in registered user accounts */
+    const enteredStudent = studentInput ? studentInput.value.trim() : ''
+
+    if (enteredStudent) {
+      try {
+        const userCheckRes = await globalThis.fetch(`${SERVER_URL}/users/check?username=${encodeURIComponent(enteredStudent)}`)
+
+        if (!userCheckRes.ok) {
+          if (studentInput) {
+            studentInput.classList.add('is-invalid')
+            studentInput.setCustomValidity('Aluno/e-mail não possui cadastro no sistema.')
+            studentInput.reportValidity()
+            studentInput.addEventListener('input', () => {
+              studentInput.classList.remove('is-invalid')
+              studentInput.setCustomValidity('')
+            }, { once: true })
+          }
+
+          _showToast(`Nenhum aluno cadastrado com o e-mail/usuário "${enteredStudent}". O aluno precisa ter uma conta criada no sistema.`, 'error')
 
           return;
         }
       } catch (err) {
-        console.warn('Could not post record to server:', err)
-
-        _showToast('Servidor offline. Não foi possível enviar ao servidor.', 'error')
-
-        return;
+        console.warn('Could not verify student user account:', err)
       }
     }
 
-    records.unshift(record)
-    _render()
-    recordForm.reset()
-    _showToast('Dispositivo registrado localmente com sucesso!', 'success')
-  } finally {
-    if (submitBtn) submitBtn.classList.remove('is-loading')
-  }
-})
+    const weight = Number(weightInput ? weightInput.value : 0)
+
+    if (!Number.isFinite(weight) || weight <= 0) {
+      if (weightInput) {
+        weightInput.classList.add('is-invalid')
+        weightInput.setCustomValidity('Informe um peso maior que zero.')
+        weightInput.reportValidity()
+        weightInput.addEventListener('input', () => weightInput.classList.remove('is-invalid'), { once: true })
+      }
+
+      return;
+    }
+
+    /* Standardize school name casing to registered version */
+    const matchedSchoolObj = registeredSchools.find((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredSchool.toLowerCase())
+    const finalSchoolName = matchedSchoolObj ? (typeof matchedSchoolObj === 'string' ? matchedSchoolObj : matchedSchoolObj.name) : enteredSchool
+
+    const record = {
+      id: _createId(),
+      device: $('#device').value.trim(),
+      weight,
+      school: finalSchoolName,
+      student: $('#student').value.trim(),
+      status: $('#status') ? $('#status').value : 'Na escola',
+      createdAt: new Date().toISOString()
+    }
+
+    if (submitBtn) submitBtn.classList.add('is-loading')
+
+    try {
+      const headers = { 'Content-Type': 'application/json' }
+
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`
+      }
+
+      const res = await globalThis.fetch(`${SERVER_URL}/items`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          uuid: record.id,
+          name: record.device,
+          owner: record.student,
+          weight: record.weight,
+          state: record.status,
+          school: record.school
+        })
+      })
+
+      if (res.ok) {
+        await _fetchRecords()
+        recordForm.reset()
+        _showToast('Dispositivo registrado com sucesso no banco de dados!', 'success')
+
+        return;
+      }
+
+      const errData = await res.json().catch(() => ({}))
+      _showToast(errData.error || 'Erro ao registrar dispositivo.', 'error')
+    } catch (err) {
+      console.warn('Could not post record to server:', err)
+
+      records.unshift(record)
+      _render()
+      recordForm.reset()
+      _showToast('Servidor offline. Dispositivo registrado localmente!', 'warning')
+    } finally {
+      if (submitBtn) submitBtn.classList.remove('is-loading')
+    }
+  })
+}
 
 
 /* INFO: REPORT CONFIG & PDF GENERATION */
@@ -460,12 +1027,11 @@ const REPORT_COLORS = {
 
 const REPORT_COLUMNS = [
   { key: 'index', label: '#', width: 8 },
-  { key: 'id', label: 'ID', width: 42 },
-  { key: 'device', label: 'Aparelho', width: 26 },
-  { key: 'weight', label: 'Peso', width: 16, align: 'right' },
-  { key: 'school', label: 'Escola', width: 30 },
-  { key: 'classroom', label: 'Sala', width: 13 },
-  { key: 'student', label: 'Aluno', width: 27 },
+  { key: 'id', label: 'ID', width: 44 },
+  { key: 'device', label: 'Aparelho', width: 28 },
+  { key: 'weight', label: 'Peso', width: 18, align: 'right' },
+  { key: 'school', label: 'Escola', width: 36 },
+  { key: 'student', label: 'Aluno', width: 28 },
   { key: 'status', label: 'Status', width: 20 }
 ]
 
@@ -595,10 +1161,9 @@ const _exportPdf = () => {
 
     const groups = [
       { title: 'Escolas', rows: stats.school.slice(0, 5) },
-      { title: 'Salas', rows: stats.classroom.slice(0, 5) },
       { title: 'Alunos', rows: stats.student.slice(0, 5) }
     ]
-    const colW = (contentW - 12) / 3
+    const colW = (contentW - 6) / 2
     let lines = 1
 
     groups.forEach((group, index) => {
@@ -699,7 +1264,7 @@ const _exportPdf = () => {
 
         const right = col.align === 'right'
 
-        doc.text(_clip(value, col.width - 5), right ? x + col.width - 2.5 : x + 2.5, y + 4.4, {
+        doc.text(_clip(value, col.width - 4), right ? x + col.width - 2.5 : x + 2.5, y + 4.4, {
           align: right ? 'right' : 'left'
         })
 
@@ -748,52 +1313,57 @@ const _exportPdf = () => {
 }
 
 
-$('#printLabels').addEventListener('click', () => window.print())
-$('#exportPdf').addEventListener('click', _exportPdf)
+if ($('#printLabels')) $('#printLabels').addEventListener('click', () => window.print())
+const _handleDeleteItemClick = async (itemId, itemDevice) => {
+  const label = itemDevice ? `"${itemDevice}" (${itemId})` : `ID ${itemId}`
 
-$('#seedDemo').addEventListener('click', async () => {
-  const demoList = _demoRecords()
+  if (!confirm(`Tem certeza que deseja excluir o dispositivo ${label}?`)) {
+    return;
+  }
 
-  if (authToken) {
-    for (const item of demoList) {
-      try {
-        await globalThis.fetch(`${SERVER_URL}/items`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${authToken}`
-          },
-          body: JSON.stringify({
-            name: item.device,
-            owner: item.student,
-            weight: item.weight,
-            state: item.status,
-            school: item.school,
-            description: item.classroom
-          })
-        })
-      } catch (err) {
-        console.warn('Failed to seed demo item to server:', err)
+  try {
+    const token = sessionStorage.getItem('authToken')
+    const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(itemId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      _showToast(data.error || 'Erro ao excluir o dispositivo.', 'error')
+
+      return;
     }
 
+    _showToast(data.message || 'Dispositivo excluído com sucesso.', 'success')
     await _fetchRecords()
-  } else {
-    records = demoList
-    _render()
+  } catch (err) {
+    console.error('Error deleting item:', err)
+    _showToast('Falha de conexão com o servidor ao tentar excluir o dispositivo.', 'error')
   }
+}
 
-  _showToast('Registros de exemplo carregados com sucesso!', 'success')
-})
+if ($('#btnStudentDevices')) {
+  $('#btnStudentDevices').addEventListener('click', () => {
+    const table = $('#studentRecordsTable')
 
-$('#clearData').addEventListener('click', () => {
-  if (confirm('Deseja apagar todos os registros desta demonstração?')) {
-    records = []
-    _render()
-    _showToast('Todos os registros foram limpos.', 'success')
-  }
-})
+    if (table) table.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
 
+if ($('#btnStudentMilestones')) {
+  $('#btnStudentMilestones').addEventListener('click', () => {
+    const milestones = $('.milestone-grid')
+
+    if (milestones) milestones.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  })
+}
+
+_fetchSchools()
 _fetchRecords()
 
 
@@ -1146,7 +1716,7 @@ document.addEventListener('DOMContentLoaded', () => {
 })
 
 
-/* INFO: UI THEME TOGGLE & ACCORDION & SCROLL INTERACTION */
+/* INFO: UI THEME TOGGLE, ACCORDION, SCROLL INTERACTION & APPLE HIG MOTION OBSERVERS */
 
 ;(() => {
   const root = document.documentElement
@@ -1175,6 +1745,30 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
+  /* Password Toggle Handlers */
+  const setupPasswordToggle = (toggleId, inputId) => {
+    const toggle = document.getElementById(toggleId)
+    const input = document.getElementById(inputId)
+
+    if (toggle && input) {
+      toggle.addEventListener('click', () => {
+        const visivel = input.type === 'text'
+
+        input.type = visivel ? 'password' : 'text'
+        toggle.classList.toggle('is-visible', !visivel)
+        toggle.setAttribute('aria-pressed', String(!visivel))
+
+        const rotulo = visivel ? 'Mostrar senha' : 'Ocultar senha'
+
+        toggle.setAttribute('aria-label', rotulo)
+        toggle.setAttribute('title', rotulo)
+      })
+    }
+  }
+
+  setupPasswordToggle('passwordToggle', 'password')
+  setupPasswordToggle('regPasswordToggle', 'regPassword')
+
   /* FAQ Accordion zero-JS-height logic */
   document.querySelectorAll('.faq-trigger').forEach((trigger) => {
     trigger.addEventListener('click', () => {
@@ -1191,10 +1785,21 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   })
 
+  /* Throttled scroll header glassmorphism */
   const nav = document.getElementById('siteNav')
 
   if (nav) {
-    const checkScroll = () => nav.classList.toggle('is-scrolled', window.scrollY > 8)
+    let ticking = false
+
+    const checkScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          nav.classList.toggle('is-scrolled', window.scrollY > 12)
+          ticking = false
+        })
+        ticking = true
+      }
+    }
 
     checkScroll()
     window.addEventListener('scroll', checkScroll, { passive: true })
@@ -1212,28 +1817,11 @@ document.addEventListener('DOMContentLoaded', () => {
     })
   }
 
-  const passwordToggle = document.getElementById('passwordToggle')
-  const passwordInput = document.getElementById('password')
-
-  if (passwordToggle && passwordInput) {
-    passwordToggle.addEventListener('click', () => {
-      const visivel = passwordInput.type === 'text'
-
-      passwordInput.type = visivel ? 'password' : 'text'
-      passwordToggle.classList.toggle('is-visible', !visivel)
-      passwordToggle.setAttribute('aria-pressed', String(!visivel))
-
-      const rotulo = visivel ? 'Mostrar senha' : 'Ocultar senha'
-
-      passwordToggle.setAttribute('aria-label', rotulo)
-      passwordToggle.setAttribute('title', rotulo)
-    })
-  }
-
+  /* Staggered scroll reveal using IntersectionObserver */
   const revelaveis = [...document.querySelectorAll('[data-reveal]')]
-  const comMovimento = root.classList.contains('js-anim')
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-  if (!comMovimento || !('IntersectionObserver' in window)) {
+  if (reducedMotion || !('IntersectionObserver' in window)) {
     revelaveis.forEach((el) => el.classList.add('is-visible'))
   } else {
     const revelador = new IntersectionObserver(
@@ -1245,38 +1833,60 @@ document.addEventListener('DOMContentLoaded', () => {
           revelador.unobserve(entry.target)
         })
       },
-      { rootMargin: '0px 0px -12% 0px', threshold: 0.06 }
+      { rootMargin: '0px 0px -40px 0px', threshold: 0.12 }
     )
 
     revelaveis.forEach((el) => revelador.observe(el))
-
-    requestAnimationFrame(() => {
-      revelaveis.forEach((el) => {
-        if (el.getBoundingClientRect().top < window.innerHeight) {
-          el.classList.add('is-visible')
-          revelador.unobserve(el)
-        }
-      })
-    })
   }
 
-  const links = [...document.querySelectorAll('.menu a[href^="#"], .edge-nav a[href^="#"]')]
-  const sections = [...document.querySelectorAll('section[id], header[id]')]
+  /* SVG Metric Ring entrance observer */
+  const rings = document.querySelectorAll('.metric-ring')
 
-  if (sections.length && 'IntersectionObserver' in window) {
-    const observer = new IntersectionObserver(
+  if (rings.length && 'IntersectionObserver' in window) {
+    const ringObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
 
-          links.forEach((link) => {
-            link.classList.toggle('is-active', link.getAttribute('href') === `#${entry.target.id}`)
+          entry.target.classList.add('is-visible')
+          ringObserver.unobserve(entry.target)
+        })
+      },
+      { threshold: 0.4 }
+    )
+
+    rings.forEach((ring) => ringObserver.observe(ring))
+  }
+
+  /* Edge Navigation Dots observer for main page */
+  const sections = [...document.querySelectorAll('section[id], header[id]')]
+  const edgeDots = [...document.querySelectorAll('.edge-nav a')]
+
+  if (sections.length && edgeDots.length && 'IntersectionObserver' in window) {
+    const sectionObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+
+          const id = entry.target.getAttribute('id')
+
+          edgeDots.forEach((dot) => {
+            dot.classList.toggle('is-active', dot.getAttribute('href') === `#${id}`)
           })
         })
       },
-      { rootMargin: '-45% 0px -50% 0px' }
+      { threshold: 0.4 }
     )
 
-    sections.forEach((section) => observer.observe(section))
+    sections.forEach((section) => sectionObserver.observe(section))
   }
+
+  /* Dynamic prefers-reduced-motion listener */
+  const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  const handleMotionChange = (e) => {
+    document.documentElement.classList.toggle('reduced-motion', e.matches)
+  }
+
+  handleMotionChange(motionQuery)
+  motionQuery.addEventListener('change', handleMotionChange)
 })()

@@ -1,179 +1,134 @@
-import { exec } from 'node:child_process'
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
-import util from 'node:util'
+/* INFO: Browser-native printing helper using standard DOM and Browser Print APIs */
 
-import PDFDocument from 'pdfkit'
-import QRCode from 'qrcode'
+const _createPrintFrame = () => {
+  let frame = document.getElementById('ecotech-print-frame')
 
-/* INFO: Promisified exec function for executing shell commands. */
-const execAsync = util.promisify(exec)
-
-/*
-   INFO: Busca prioritaria por impressoras de recibos.
-           99% de chance que vai dar merda mas fazer o que.
-*/
-const RECEIPT_KEYWORDS = [
-  'receipt',
-  'pos',
-  'thermal',
-  'epson',
-  'star',
-  'tm-t',
-  'tsp',
-  'munbyn',
-  'xprinter'
-]
-
-/* INFO: Livrarias sao carregadas dependendo do sistema operacional. */
-let winPrinter = null
-let unixPrinter = null
-
-if (os.platform() === 'win32') {
-  winPrinter = await import('pdf-to-printer')
-} else {
-  unixPrinter = await import('unix-print')
-}
-
-/* INFO: Codigo universal para encontrar impressoras independente do sistema operacional. */
-async function _getConnectedPrinters() {
-  const platform = os.platform()
-
-  if (platform === 'win32') {
-    const printers = await winPrinter.getPrinters()
-
-    return printers.map((p) => ({ name: p.name, deviceId: p.deviceId }))
+  if (!frame) {
+    frame = document.createElement('iframe')
+    frame.id = 'ecotech-print-frame'
+    frame.style.position = 'fixed'
+    frame.style.right = '0'
+    frame.style.bottom = '0'
+    frame.style.width = '0'
+    frame.style.height = '0'
+    frame.style.border = '0'
+    document.body.appendChild(frame)
   }
 
-  /*
-     INFO: Linux / macOS via LPSTAT.
-             Honestamente, eu faco 0 ideia do que caralhos a IA fez aqui,
-             eu nao uso linux na minha maquina entao nao da pra saber se funciona ainda.
-             Sim foi basicamente traduzido do codigo do windows.
-  */
-  try {
-    const { stdout } = await execAsync('lpstat -p')
-    const lines = stdout.split('\n')
-    const printers = []
+  return frame
+}
 
-    for (const line of lines) {
-      const match = line.match(/^printer\s+([^\s]+)/)
 
-      if (match) {
-        printers.push({ name: match[1], deviceId: match[1] })
-      }
-    }
-
-    return printers
-  } catch (err) {
-    console.warn('Could not query CUPS printers via lpstat. Standard error:', err.message)
-
-    return []
+/* INFO: Trigger native browser print dialog for current window */
+const invokePrint = () => {
+  if (typeof globalThis.print === 'function') {
+    globalThis.print()
   }
 }
 
-/*
-   INFO: Seleciona a melhor impressora disponivel de acordo com os seguintes parametros:
-           1. Busca por impressoras de recibo.
-           2. Caso nao encontre utiliza qualquer impressora disponivel.
-*/
-async function _getTargetPrinter() {
-  const printers = await _getConnectedPrinters()
 
-  if (printers.length === 0) {
-    throw new Error('No connected printers found on the system.')
-  }
-
-  const receiptPrinter = printers.find((p) =>
-    RECEIPT_KEYWORDS.some((kw) => p.name.toLowerCase().includes(kw))
-  )
-
-  if (receiptPrinter) {
-    console.log(`Receipt printer detected: ${receiptPrinter.name}`)
-
-    return receiptPrinter.name
-  }
-
-  console.log(`No receipt printer found. Using fallback printer: ${printers[0].name}`)
-
-  return printers[0].name
-}
-
-/* INFO: Cria um pdf temporario para gerar o qr code com id do produto. */
-async function _generatePrintPDF(id, filePath) {
-  const qrDataUrl = await QRCode.toDataURL(id, {
-    margin: 1,
-    width: 300,
-    errorCorrectionLevel: 'M'
-  })
-
-  const doc = new PDFDocument({
-    size: [226, 300],
-    margin: 10
-  })
-
-  /* INFO: Que comece a gambiarra. */
-  const writeStream = fs.createWriteStream(filePath)
-
-  return new Promise((resolve, reject) => {
-    doc.pipe(writeStream)
-    doc.fontSize(12).font('Helvetica-Bold').text('ID BARCODE', { align: 'center' })
-    doc.moveDown(0.5)
-    doc.image(qrDataUrl, {
-      fit: [150, 150],
-      align: 'center',
-      valign: 'center'
-    })
-    doc.moveDown(0.5)
-    doc.fontSize(10).font('Helvetica').text(`ID: ${id}`, { align: 'center' })
-    doc.end()
-
-    /* INFO: Honestamente achei que ia ser pior. */
-    writeStream.on('finish', () => resolve(filePath))
-    writeStream.on('error', reject)
-  })
-}
-
-/*
-   INFO: Imprime o qr code automaticamente.
-   
-   SOURCES:
-    - O ID para ser gerado o qr code.
-*/
-async function printQrCode(id) {
+/* INFO: Generate printable QR barcode label using browser APIs and invoke browser print dialog */
+const printQrCode = (id, metadata = {}) => {
   if (!id || typeof id !== 'string') {
-    throw new Error('The printQrCode function accepts exactly one string ID per call.')
+    throw new Error('The printQrCode function accepts a valid string ID.')
   }
 
-  const tempPdfPath = path.join(os.tmpdir(), `qr_print_${Date.now()}.pdf`)
-
-  try {
-    /* INFO: 1. Detectar impressora. */
-    const printerName = await _getTargetPrinter()
-
-    /* INFO: 2. Gerar qr code. */
-    await _generatePrintPDF(id, tempPdfPath)
-
-    /* INFO: 3. Enviar para impressao. */
-    if (os.platform() === 'win32') {
-      await winPrinter.print(tempPdfPath, { printer: printerName })
-    } else {
-      await unixPrinter.print(tempPdfPath, printerName)
-    }
-
-    console.log(`Successfully sent ID "${id}" to printer: ${printerName}`)
-  } catch (error) {
-    /* INFO: Se deu isso e porque deu merda seu animal. */
-    console.error(`Failed to print QR code for ID "${id}":`, error.message)
-
-    throw error
-  } finally {
-    /* INFO: Limpar o qr code gerado para nao encher o sistema. */
-    if (fs.existsSync(tempPdfPath)) {
-      fs.unlinkSync(tempPdfPath)
-    }
+  if (typeof document === 'undefined') {
+    throw new Error('printQrCode requires a browser environment.')
   }
+
+  const frame = _createPrintFrame()
+  const frameDoc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document)
+
+  if (!frameDoc) {
+    invokePrint()
+
+    return;
+  }
+
+  const device = metadata.device || 'Aparelho Eletrônico'
+  const school = metadata.school || 'EcoTech UPT'
+  const student = metadata.student || ''
+
+  frameDoc.open()
+  frameDoc.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Etiqueta ${id}</title>
+        <style>
+          @page { size: auto; margin: 10mm; }
+          body {
+            font-family: system-ui, -apple-system, sans-serif;
+            text-align: center;
+            padding: 12px;
+            margin: 0;
+            color: #12201a;
+          }
+          .qr-card {
+            border: 2px solid #0c1411;
+            border-radius: 8px;
+            padding: 16px;
+            display: inline-block;
+            max-width: 280px;
+          }
+          .qr-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin-bottom: 8px;
+          }
+          .qr-code {
+            display: flex;
+            justify-content: center;
+            margin: 12px 0;
+          }
+          .qr-id {
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 6px;
+          }
+          .qr-meta {
+            font-size: 10px;
+            color: #4e5b53;
+            margin-top: 4px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="qr-card">
+          <div class="qr-title">ECOTECH · REGISTRO</div>
+          <div class="qr-code" id="qrContainer"></div>
+          <div class="qr-id">${id}</div>
+          <div class="qr-meta">${device} ${school ? '• ' + school : ''} ${student ? '• ' + student : ''}</div>
+        </div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+        <script>
+          if (window.QRCode) {
+            new QRCode(document.getElementById('qrContainer'), {
+              text: '${id}',
+              width: 140,
+              height: 140
+            });
+          }
+          window.onload = function() {
+            setTimeout(function() {
+              window.focus();
+              window.print();
+            }, 250);
+          };
+        </script>
+      </body>
+    </html>
+  `)
+  frameDoc.close()
 }
 
-export { printQrCode }
+
+/* INFO: Trigger print dialog for all generated labels */
+const printLabels = () => {
+  invokePrint()
+}
+
+
+export { invokePrint, printQrCode, printLabels }

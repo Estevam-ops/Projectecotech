@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EcoTech IFTM UPT | Coleta de Resíduos Eletrônicos</title>
+    <meta name="description" content="Projeto de coleta de lixo eletrônico do IFTM Campus Uberaba Parque Tecnológico em parceria com escolas, comunidade e Cooperu." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="../styles.css" />
+    <script>
+      (function () {
+        try {
+          if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            document.documentElement.classList.add('js-anim');
+            setTimeout(function () {
+              var ocultos = document.querySelectorAll('[data-reveal]:not(.is-visible)');
+              for (var i = 0; i < ocultos.length; i += 1) {
+                ocultos[i].classList.add('is-visible');
+              }
+            }, 2500);
+          }
+        } catch (e) {}
+      })();
+    </script>
+    <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script defer src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script defer src="../app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
+
+    <nav class="edge-nav" aria-label="Navegação rápida de seções">
+      <a href="#inicio" data-label="Início" aria-label="Ir para a seção Início"></a>
+      <a href="#como-funciona" data-label="Como Funciona" aria-label="Ir para a seção Como Funciona"></a>
+      <a href="#impacto" data-label="Impacto" aria-label="Ir para a seção Impacto"></a>
+      <a href="#materiais" data-label="Materiais" aria-label="Ir para a seção Materiais"></a>
+      <a href="#pontos-coleta" data-label="Pontos de Coleta" aria-label="Ir para a seção Pontos de Coleta"></a>
+      <a href="#ranking" data-label="Ranking" aria-label="Ir para a seção Ranking"></a>
+      <a href="#faq" data-label="FAQ" aria-label="Ir para a seção FAQ"></a>
+    </nav>
+
+    <nav class="nav" id="siteNav" aria-label="Navegação principal">
+      <div class="nav-container">
+        <a class="brand" href="main.html" aria-label="EcoTech - início"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 15.2 9M12 3.4 8.8 9"/><path d="M4.6 15.4 7.8 9.8"/><path d="M19.4 15.4 16.2 9.8"/><path d="M8.4 20.2h7.2"/><path d="m6.6 12.6-2.4 2.4 2.6 2.2"/><path d="m17.4 12.6 2.4 2.4-2.6 2.2"/></svg></span> EcoTech</a>
+        <div class="nav-actions">
+          <a class="button primary session-nav-btn" href="session.html">Sessão</a>
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            type="button"
+            title="Alternar tema claro e escuro"
+            aria-label="Alternar tema claro e escuro">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.4M12 19.2v2.4M21.6 12h-2.4M4.8 12H2.4M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7M18.8 18.8l-1.7-1.7M6.9 6.9 5.2 5.2"/></svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <header class="hero section-band" id="inicio">
+      <div class="container hero-container">
+        <div class="hero-content">
+          <span class="section-label">IFTM UPT · Escolas · Cooperu</span>
+          <h1>Transforme Resíduo eletrônico em <em>educação ambiental</em> e impacto social.</h1>
+          <p class="hero-lead">
+            Uma plataforma para divulgar a campanha, registrar aparelhos por QR Code,
+            monitorar coletas por escola, sala e aluno, e gerar relatórios para a premiação.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="session.html">Acessar Sessão</a>
+            <a class="button secondary" href="#como-funciona">Entender o projeto</a>
+          </div>
+        </div>
+        <dl class="hero-strip">
+          <div><dt>Onde</dt><dd>Uberaba · Minas Gerais</dd></div>
+          <div><dt>Como</dt><dd>Etiqueta com QR Code por aparelho</dd></div>
+          <div><dt>Destino</dt><dd>Triagem e reciclagem pela Cooperu</dd></div>
+        </dl>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="section section-band" id="como-funciona" aria-labelledby="como-funciona-title" data-reveal>
+        <div class="container grid-2">
+          <div>
+            <span class="section-label">Fluxo da coleta</span>
+            <h2 id="como-funciona-title" class="section-title">Da casa do aluno ao desmantelamento responsável</h2>
+            <p class="section-subtitle">
+              Pessoas da comunidade entregam resíduos eletrônicos nas escolas participantes.
+              As escolas consolidam os materiais e encaminham ao IFTM UPT. Em seguida, a
+              Cooperu realiza a coleta, triagem e desmantelamento dos resíduos.
+            </p>
+          </div>
+          <ol class="steps">
+            <li><strong>Entrega:</strong> aluno ou comunidade leva o eletrônico para uma escola.</li>
+            <li><strong>Identificação:</strong> a equipe gera uma etiqueta com QR Code único por aparelho.</li>
+            <li><strong>Monitoramento:</strong> peso, escola, sala, aluno e status ficam registrados.</li>
+            <li><strong>Destino:</strong> IFTM UPT e Cooperu dão a destinação correta ao material.</li>
+          </ol>
+        </div>
+      </section>
+
+      <hr class="section-divider" />
+
+      <section class="section" id="impacto" aria-labelledby="impacto-title" data-reveal>
+        <div class="container">
+          <h2 id="impacto-title" class="visually-hidden">Pilares de impacto</h2>
+          <div class="cards">
+            <article>
+              <h3>Divulgação</h3>
+              <p>Explique objetivos, parceiros, pontos de entrega e orientações para descarte seguro.</p>
+            </article>
+            <article>
+              <h3>Rastreabilidade</h3>
+              <p>Cada aparelho recebe um ID único e um QR Code para consulta e conferência.</p>
+            </article>
+            <article>
+              <h3>Premiação</h3>
+              <p>Rankings automáticos destacam escola, sala e aluno que mais arrecadaram.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <hr class="section-divider" />
+
+      <section class="section section-band" id="materiais" aria-labelledby="materiais-title" data-reveal>
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-label">O que descartar</span>
+            <h2 id="materiais-title" class="section-title">Materiais aceitos na campanha</h2>
+            <p class="section-subtitle">
+              Recebemos desde pequenos acessórios até eletrodomésticos de médio porte.
+              Verifique a lista abaixo antes de realizar sua entrega.
+            </p>
+          </div>
+          <div class="materials-grid">
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              </div>
+              <strong>Celulares e Tablets</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="12" rx="2"/><path d="M2 20h20"/></svg>
+              </div>
+              <strong>Computadores e Laptops</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 18h12"/><path d="M6 14h12"/><rect x="4" y="6" width="16" height="4" rx="1"/></svg>
+              </div>
+              <strong>Teclados e Mouses</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              </div>
+              <strong>Impressoras e Scanners</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+              </div>
+              <strong>Cabos e Carregadores</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+              </div>
+              <strong>Monitores e TVs</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/></svg>
+              </div>
+              <strong>Caixas de Som</strong>
+            </article>
+            <article>
+              <div class="icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="11" y1="6" x2="13" y2="6"/></svg>
+              </div>
+              <strong>Pilhas e Baterias</strong>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <hr class="section-divider" />
+
+      <section class="section" id="pontos-coleta" aria-labelledby="pontos-coleta-title" data-reveal>
+        <div class="map-layout">
+          <aside class="map-controls">
+            <div>
+              <span class="section-label">Pontos de Coleta & Rotas</span>
+              <h2 id="pontos-coleta-title" class="section-title" style="font-size: var(--text-2xl);">Localize o ecoponto mais próximo</h2>
+              <p class="section-subtitle" style="font-size: var(--text-sm);">
+                Filtre por tipo de resíduo, informe sua localização ou use o GPS para traçar a melhor rota em Uberaba.
+              </p>
+            </div>
+
+            <div class="map-inputs-col">
+              <label for="material-filter">Tipo de Resíduo</label>
+              <select id="material-filter">
+                <option value="all">Todos os materiais</option>
+                <option value="eletronicos">Eletrônicos em geral</option>
+                <option value="pilhas">Pilhas e Baterias</option>
+                <option value="plastico">Plástico</option>
+                <option value="papel">Papel e Papelão</option>
+                <option value="vidro">Vidro</option>
+                <option value="metal">Metal</option>
+                <option value="oleo">Óleo de Cozinha</option>
+              </select>
+
+              <label for="origin-input">Ponto de Partida</label>
+              <div class="input-with-btn">
+                <input id="origin-input" type="text" placeholder="Seu bairro ou rua em Uberaba..." />
+                <button class="button secondary" id="gps-btn" type="button" title="Usar minha localização atual (GPS)">GPS</button>
+              </div>
+
+              <label for="destination-input">Destino (Opcional)</label>
+              <input id="destination-input" type="text" placeholder="Nome do ecoponto ou deixe em branco..." />
+            </div>
+
+            <div class="map-actions-row">
+              <button class="button primary" id="calc-route-btn" type="button" style="flex: 1;">Calcular Rota</button>
+              <button class="button secondary" id="filter-map-btn" type="button">Filtrar Mapa</button>
+            </div>
+
+            <p id="route-status" class="visually-hidden" role="status" aria-live="polite"></p>
+            <div id="route-instructions"></div>
+
+            <div class="collection-points">
+              <article>
+                <span class="point-badge">1</span>
+                <h3>IFTM UPT - Unidade II</h3>
+                <p>Av. Edilson Lamartine Mendes, 300 - Parque das Américas</p>
+                <span class="status-badge status-na-escola">Eletrônicos & Pilhas</span>
+              </article>
+              <article>
+                <span class="point-badge">2</span>
+                <h3>IFTM UPT - Unidade I</h3>
+                <p>Av. Dr. Florestan Fernandes, 131 - Univerdecidade</p>
+                <span class="status-badge status-na-escola">Eletrônicos & Pilhas</span>
+              </article>
+              <article>
+                <span class="point-badge">3</span>
+                <h3>EcoPonto Central</h3>
+                <p>Av. Leopoldino de Oliveira, 1000 - Centro</p>
+                <span class="status-badge status-coletado">Multimateriais</span>
+              </article>
+            </div>
+          </aside>
+
+          <main class="map-canvas">
+            <div id="map-container" aria-label="Mapa interativo dos pontos de coleta de Uberaba"></div>
+          </main>
+        </div>
+      </section>
+
+      <hr class="section-divider" />
+
+      <section class="section section-band" id="ranking" aria-labelledby="ranking-title" data-reveal>
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-label">Engajamento & Premiação</span>
+            <h2 id="ranking-title" class="section-title">Resultados da campanha em tempo real</h2>
+            <p class="section-subtitle">
+              Métricas consolidadas com o peso total arrecadado e os líderes de engajamento por escola, sala e aluno.
+            </p>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric-card">
+              <div class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+              </div>
+              <div class="metric-body">
+                <span class="metric-value" id="totalItems">0</span>
+                <span class="metric-label">Aparelhos Cadastrados</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+              <div class="metric-body">
+                <span class="metric-value" id="totalWeight">0,00 kg</span>
+                <span class="metric-label">Peso Total Arrecadado</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1z"/></svg>
+              </div>
+              <div class="metric-body">
+                <span class="metric-value" id="topSchool">-</span>
+                <span class="metric-label">Escola Líder</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+              <div class="metric-body">
+                <span class="metric-value" id="topStudent">-</span>
+                <span class="metric-label">Aluno Destaque</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="ranking-grid">
+            <div class="panel ranking-panel">
+              <h3>Top Escolas</h3>
+              <ol class="rank-list" id="schoolRanking"></ol>
+            </div>
+
+            <div class="panel ranking-panel">
+              <h3>Top Salas</h3>
+              <ol class="rank-list" id="classRanking"></ol>
+            </div>
+
+            <div class="panel ranking-panel">
+              <h3>Top Alunos</h3>
+              <ol class="rank-list" id="studentRanking"></ol>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <hr class="section-divider" />
+
+      <section class="section" id="faq" aria-labelledby="faq-title" data-reveal>
+        <div class="container">
+          <div class="section-heading">
+            <span class="section-label">Dúvidas Frequentes</span>
+            <h2 id="faq-title" class="section-title">Perguntas sobre o descarte e o projeto</h2>
+            <p class="section-subtitle">
+              Respostas para as principais questões da comunidade sobre o descarte correto de lixo eletrônico.
+            </p>
+          </div>
+
+          <div style="max-width: 800px; margin: 0 auto;">
+            <div class="faq-item">
+              <button class="faq-trigger" type="button" aria-expanded="false">
+                <span>Posso descartar cabos e carregadores antigos?</span>
+                <svg class="faq-trigger-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div class="faq-panel">
+                <div class="faq-panel-inner">
+                  <p>Sim! Todos os cabos, carregadores, adaptadores e pequenos acessórios eletrônicos são aceitos.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-trigger" type="button" aria-expanded="false">
+                <span>E se o aparelho estiver totalmente quebrado?</span>
+                <svg class="faq-trigger-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div class="faq-panel">
+                <div class="faq-panel-inner">
+                  <p>Sim. Mesmo sem funcionamento ou quebrados, eles podem ser desmantelados e reciclados pela Cooperu.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-trigger" type="button" aria-expanded="false">
+                <span>A entrega possui algum custo?</span>
+                <svg class="faq-trigger-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div class="faq-panel">
+                <div class="faq-panel-inner">
+                  <p>Não. A entrega é 100% gratuita para toda a comunidade.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="faq-item">
+              <button class="faq-trigger" type="button" aria-expanded="false">
+                <span>Como participar da campanha de arrecadação nas escolas?</span>
+                <svg class="faq-trigger-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 8l4 4 4-4"/>
+                </svg>
+              </button>
+              <div class="faq-panel">
+                <div class="faq-panel-inner">
+                  <p>Leve o resíduo eletrônico até uma escola participante. A equipe cadastrará o item com o nome do aluno/turma e imprimirá a etiqueta QR.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="contato" aria-labelledby="contato-title" data-reveal>
+        <div class="container grid-2">
+          <div>
+            <span class="section-label">Contato</span>
+            <h2 id="contato-title" class="section-title">Faça parte do projeto</h2>
+            <p class="section-subtitle">Sua participação ajuda a construir uma comunidade mais sustentável e fortalece a educação ambiental.</p>
+          </div>
+          <div class="panel">
+            <h3>IFTM Campus Uberaba Parque Tecnológico</h3>
+            <p>Uberaba - Minas Gerais</p>
+            <p>Em breve serão divulgados os pontos de coleta e canais oficiais de contato.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <footer>
+      <div class="container footer-container">
+        <strong>EcoTech IFTM UPT</strong>
+        <span>Projeto escolar de coleta, educação ambiental e inclusão de cooperativas.</span>
+        <a href="#inicio" aria-label="Voltar ao topo">↑ Voltar ao topo</a>
+      </div>
+    </footer>
+  </body>
+</html>
