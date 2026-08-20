@@ -499,7 +499,7 @@ const _render = () => {
 
   if (metricEls.topSchool) {
     if (stats.school[0]) {
-      const truncatedSchool = _truncateText(stats.school[0][0], 16)
+      const truncatedSchool = _truncateText(stats.school[0][0], 12)
       metricEls.topSchool.textContent = `${truncatedSchool} (${stats.school[0][1].toFixed(2)} kg)`
       metricEls.topSchool.title = stats.school[0][0]
     } else {
@@ -510,7 +510,7 @@ const _render = () => {
 
   if (metricEls.topStudent) {
     if (stats.student[0]) {
-      const truncatedStudent = _truncateText(stats.student[0][0], 16)
+      const truncatedStudent = _truncateText(stats.student[0][0], 12)
       metricEls.topStudent.textContent = `${truncatedStudent} (${stats.student[0][1].toFixed(2)} kg)`
       metricEls.topStudent.title = stats.student[0][0]
     } else {

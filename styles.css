@@ -1324,9 +1324,6 @@ body {
     box-shadow var(--duration-slow) var(--ease-out-soft),
     border-color var(--duration-base) ease;
 }
-    box-shadow var(--duration-slow) var(--ease-out-soft),
-    border-color var(--duration-base) ease;
-}
 
 .metric-card:hover {
   box-shadow: var(--shadow-lift);
@@ -1353,11 +1350,12 @@ body {
 .metric-body {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: clamp(1.1rem, 1vw + 0.8rem, var(--text-2xl));
+  font-size: clamp(0.95rem, 0.8vw + 0.6rem, 1.25rem);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
@@ -1365,6 +1363,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 
 .metric-label {
