@@ -36,11 +36,10 @@ const _updateDeleteButtonState = () => {
   }
 
   if (printBtn) {
-    if (count > 0) {
-      printBtn.textContent = count > 1 ? `Imprimir Etiquetas QR (${count})` : 'Imprimir Etiquetas QR'
-    } else {
-      printBtn.textContent = 'Imprimir Etiquetas QR'
-    }
+    const iconSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`
+    const labelText = count > 1 ? `Imprimir Etiquetas QR (${count})` : 'Imprimir Etiquetas QR'
+
+    printBtn.innerHTML = `${iconSvg} ${labelText}`
   }
 }
 
@@ -1171,9 +1170,9 @@ const _exportPdf = () => {
   const pageW = doc.internal.pageSize.getWidth()
   const pageH = doc.internal.pageSize.getHeight()
 
-  const cols = 3
-  const rowsPerPage = 4
-  const qrSize = 52
+  const cols = 4
+  const rowsPerPage = 5
+  const qrSize = 42
   const gapX = (pageW - cols * qrSize) / (cols + 1)
   const gapY = (pageH - rowsPerPage * qrSize) / (rowsPerPage + 1)
 
