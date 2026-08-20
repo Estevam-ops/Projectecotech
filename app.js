@@ -1280,6 +1280,7 @@ const _exportPdf = () => {
 
     summaryCells.forEach((cell, index) => {
       const x = margin + index * (cellW + gap)
+      const centerX = x + cellW / 2
 
       fill(REPORT_COLORS.paper)
       stroke(REPORT_COLORS.line)
@@ -1289,12 +1290,12 @@ const _exportPdf = () => {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(16)
       ink(REPORT_COLORS.ink)
-      doc.text(_clip(cell.value, cellW - 8), x + 4.5, y + 11)
+      doc.text(_clip(cell.value, cellW - 6), centerX, y + 11, { align: 'center' })
 
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(6.8)
       ink(REPORT_COLORS.muted)
-      doc.text(_clip(cell.label, cellW - 8), x + 4.5, y + 16.6)
+      doc.text(_clip(cell.label, cellW - 6), centerX, y + 16.6, { align: 'center' })
     })
 
     y += 31
