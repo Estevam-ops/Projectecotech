@@ -296,7 +296,7 @@ const _fetchSchools = async () => {
     if (res.ok) {
       const data = await res.json()
 
-      if (Array.isArray(data.schools) && data.schools.length > 0) {
+      if (Array.isArray(data.schools)) {
         registeredSchools = data.schools
       }
     }
