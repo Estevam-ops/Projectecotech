@@ -400,19 +400,22 @@ const _renderStudentPortal = () => {
   if ($('#studentDeviceCount')) $('#studentDeviceCount').textContent = displayList.length
   if ($('#studentTotalWeight')) $('#studentTotalWeight').textContent = `${totalWeight.toFixed(2)} kg`
 
-  /* Dynamic ring progress indicators */
+  /* Dynamic ring progress indicators (user contribution vs total campaign) */
   const fill1 = $('#studentRingFill1')
   const val1 = $('#studentRingValue1')
   const fill2 = $('#studentRingFill2')
   const val2 = $('#studentRingValue2')
 
-  const countPct = Math.min(100, Math.round((displayList.length / 5) * 100))
-  const weightPct = Math.min(100, Math.round((totalWeight / 10) * 100))
+  const totalCampaignCount = records.length
+  const totalCampaignWeight = records.reduce((acc, curr) => acc + Number(curr.weight || 0), 0)
+
+  const countPct = totalCampaignCount > 0 ? Math.min(100, Math.round((displayList.length / totalCampaignCount) * 100)) : 0
+  const weightPct = totalCampaignWeight > 0 ? Math.min(100, Math.round((totalWeight / totalCampaignWeight) * 100)) : 0
 
   if (fill1) fill1.setAttribute('stroke-dasharray', `${countPct}, 100`)
   if (val1) val1.textContent = `${countPct}%`
   if (fill2) fill2.setAttribute('stroke-dasharray', `${weightPct}, 100`)
-  if (val2) val2.textContent = `${totalWeight.toFixed(2)}kg`
+  if (val2) val2.textContent = `${weightPct}%`
 
   /* Dynamic milestone badge unlock logic based on actual student contribution */
   const badgeBronze = $('#badgeBronze')
