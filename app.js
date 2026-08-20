@@ -1792,8 +1792,24 @@ document.addEventListener('DOMContentLoaded', () => {
           show: true
         })
 
-        routingControl.on('routesfound', () => {
-          if (routeStatus) routeStatus.textContent = 'Rota calculada. As instruções estão disponíveis antes do mapa.'
+        routingControl.on('routesfound', (e) => {
+          const routes = e.routes
+          if (routes && routes.length > 0 && instructionsDiv) {
+            const summary = routes[0].summary
+            const distKm = (summary.totalDistance / 1000).toFixed(1)
+            const timeMin = Math.round(summary.totalTime / 60)
+
+            instructionsDiv.innerHTML = `
+              <div class="route-summary-card">
+                <div class="route-summary-title">📍 Rota Calculada com Sucesso</div>
+                <div class="route-summary-stats">
+                  <span><strong>Distância:</strong> ${distKm} km</span>
+                  <span><strong>Tempo est.:</strong> ~${timeMin} min</span>
+                </div>
+              </div>`
+          }
+
+          if (routeStatus) routeStatus.textContent = 'Rota calculada com sucesso.'
           _showToast('Rota calculada com sucesso!', 'success')
         })
 
@@ -1803,10 +1819,6 @@ document.addEventListener('DOMContentLoaded', () => {
         })
 
         routingControl.addTo(map)
-
-        if (instructionsDiv) {
-          instructionsDiv.replaceChildren(routingControl.getContainer())
-        }
       } finally {
         calcRouteBtn.classList.remove('is-loading')
       }
