@@ -77,6 +77,12 @@ const _escapeHtml = (value) => {
     .replace(/"/g, '&quot;')
 }
 
+const _truncateText = (str, maxLength = 25) => {
+  if (!str) return '-'
+  const text = String(str).trim()
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...` : text
+}
+
 
 const _showToast = (message, type = 'success') => {
   const container = $('#toastContainer')
@@ -490,8 +496,28 @@ const _render = () => {
 
   if (metricEls.totalItems) metricEls.totalItems.textContent = records.length
   if (metricEls.totalWeight) metricEls.totalWeight.textContent = `${stats.totalWeight.toFixed(2)} kg`
-  if (metricEls.topSchool) metricEls.topSchool.textContent = stats.school[0] ? `${stats.school[0][0]} (${stats.school[0][1].toFixed(2)} kg)` : '-'
-  if (metricEls.topStudent) metricEls.topStudent.textContent = stats.student[0] ? `${stats.student[0][0]} (${stats.student[0][1].toFixed(2)} kg)` : '-'
+
+  if (metricEls.topSchool) {
+    if (stats.school[0]) {
+      const truncatedSchool = _truncateText(stats.school[0][0], 16)
+      metricEls.topSchool.textContent = `${truncatedSchool} (${stats.school[0][1].toFixed(2)} kg)`
+      metricEls.topSchool.title = stats.school[0][0]
+    } else {
+      metricEls.topSchool.textContent = '-'
+      metricEls.topSchool.removeAttribute('title')
+    }
+  }
+
+  if (metricEls.topStudent) {
+    if (stats.student[0]) {
+      const truncatedStudent = _truncateText(stats.student[0][0], 16)
+      metricEls.topStudent.textContent = `${truncatedStudent} (${stats.student[0][1].toFixed(2)} kg)`
+      metricEls.topStudent.title = stats.student[0][0]
+    } else {
+      metricEls.topStudent.textContent = '-'
+      metricEls.topStudent.removeAttribute('title')
+    }
+  }
 
   const rankTargets = [
     { target: $('#schoolRanking'), rows: stats.school },

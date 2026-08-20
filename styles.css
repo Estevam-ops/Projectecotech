@@ -21,16 +21,16 @@
   --motion-base: var(--duration-base);
   --motion-slow: var(--duration-slow);
 
-  /* Typographic Scale (1.25 Major Third Ratio) */
-  --text-xs: 0.75rem;    /* 12px - captions, badges */
-  --text-sm: 0.875rem;   /* 14px - body secondary, labels */
-  --text-base: 1rem;     /* 16px - body */
-  --text-lg: 1.125rem;   /* 18px - lead paragraphs */
-  --text-xl: 1.25rem;    /* 20px - card titles */
-  --text-2xl: 1.5rem;    /* 24px - section subheads */
-  --text-3xl: 1.875rem;  /* 30px - section titles */
-  --text-4xl: 2.25rem;   /* 36px - hero headline */
-  --text-5xl: 3rem;      /* 48px - hero display */
+  /* Fluid Typographic Scale (1.25 Major Third Ratio) */
+  --text-xs: clamp(0.7rem, 0.65rem + 0.25vw, 0.75rem);
+  --text-sm: clamp(0.8rem, 0.75rem + 0.3vw, 0.875rem);
+  --text-base: clamp(0.9rem, 0.85rem + 0.4vw, 1rem);
+  --text-lg: clamp(1rem, 0.95rem + 0.5vw, 1.125rem);
+  --text-xl: clamp(1.1rem, 1rem + 0.6vw, 1.25rem);
+  --text-2xl: clamp(1.25rem, 1.1rem + 1vw, 1.5rem);
+  --text-3xl: clamp(1.5rem, 1.25rem + 1.25vw, 1.875rem);
+  --text-4xl: clamp(1.75rem, 1.35rem + 2vw, 2.25rem);
+  --text-5xl: clamp(2.25rem, 1.5rem + 3.2vw, 3rem);
 
   /* Color Palette - Light Theme (WCAG AA Compliant) */
   --paper: #f7f6f1;
@@ -280,12 +280,12 @@ body {
 }
 
 .section {
-  padding: 64px 0;
+  padding: clamp(3rem, 5vw, 6rem) 0;
 }
 
 @media (min-width: 768px) {
   .section {
-    padding: 96px 0;
+    padding: clamp(4rem, 6vw, 6rem) 0;
   }
 }
 
@@ -316,7 +316,7 @@ body {
 .footer-container {
   width: 100%;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 clamp(1rem, 3.5vw, 2.5rem);
   box-sizing: border-box;
 }
 
@@ -329,7 +329,7 @@ body {
 
 /* Section Headers & Labels */
 .section-heading {
-  margin-bottom: 40px;
+  margin-bottom: clamp(1.5rem, 3.5vw, 2.5rem);
 }
 
 .section-label,
@@ -902,8 +902,8 @@ body {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: clamp(1rem, 2.5vw, 1.5rem);
 }
 
 .cards article,
@@ -911,7 +911,7 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 24px;
+  padding: clamp(1.25rem, 2.5vw, 1.75rem);
   transition: 
     transform var(--duration-base) var(--ease-out-soft),
     box-shadow var(--duration-slow) var(--ease-out-soft),
@@ -1243,8 +1243,8 @@ body {
 
 @media (min-width: 1200px) {
   .map-layout {
-    grid-template-columns: 360px 1fr;
-    min-height: 500px;
+    grid-template-columns: minmax(300px, 360px) 1fr;
+    min-height: clamp(400px, 50vh, 600px);
   }
 
   .map-controls {
@@ -1297,9 +1297,10 @@ body {
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
   margin-bottom: 32px;
+  width: 100%;
 }
 
 @media (min-width: 1440px) {
@@ -1312,11 +1313,17 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 24px;
+  padding: clamp(1rem, 2vw, 1.5rem);
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: 
+    box-shadow var(--duration-slow) var(--ease-out-soft),
+    border-color var(--duration-base) ease;
+}
     box-shadow var(--duration-slow) var(--ease-out-soft),
     border-color var(--duration-base) ease;
 }
@@ -1350,10 +1357,10 @@ body {
 
 .metric-value {
   font-family: var(--font-display);
-  font-size: var(--text-2xl);
+  font-size: clamp(1.1rem, 1vw + 0.8rem, var(--text-2xl));
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.1;
+  line-height: 1.2;
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -1408,9 +1415,9 @@ body {
 .ranking-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 24px;
-  max-width: 960px;
-  margin: 0 auto;
+  gap: clamp(1rem, 2.5vw, 1.75rem);
+  width: 100%;
+  margin: 0;
 }
 
 @media (min-width: 768px) {
@@ -1517,7 +1524,7 @@ body {
 }
 
 .rank-bar-bg {
-  width: 60px;
+  width: clamp(45px, 15%, 90px);
   height: 6px;
   background: var(--border);
   border-radius: 3px;
