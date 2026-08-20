@@ -963,7 +963,7 @@ body {
 
 .materials-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: 16px;
 }
 
@@ -978,27 +978,23 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 14px;
+  padding: 20px 10px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  transition: 
-    transform var(--duration-base) var(--ease-out-soft),
-    border-color var(--duration-base) ease,
-    background var(--duration-base) ease;
+  cursor: default;
+  user-select: none;
+  pointer-events: none;
+  min-width: 0;
 }
 
-.materials-grid article:hover {
-  transform: translateY(-2px);
-  border-color: var(--accent-green);
-  background: var(--bg-card);
-}
-
+.materials-grid article:hover,
 .materials-grid article:active {
-  transform: scale(0.98);
-  transition-duration: var(--duration-fast);
+  transform: none;
+  border-color: var(--border);
+  background: var(--bg-card);
 }
 
 .materials-grid .icon {
@@ -1020,6 +1016,11 @@ body {
 .materials-grid strong {
   font-size: var(--text-sm);
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
 }
 
 .steps {
