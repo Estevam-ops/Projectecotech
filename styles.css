@@ -1345,11 +1345,13 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: 24px;
+  max-width: 960px;
+  margin: 0 auto;
 }
 
 @media (min-width: 768px) {
   .ranking-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -1399,8 +1401,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  line-height: 1;
   font-size: 0.75rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   flex-shrink: 0;
 }
 
@@ -1798,6 +1803,22 @@ body {
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--accent-green);
+}
+
+/* Selectable & Selected Table Rows */
+.table-wrap tbody tr.selectable-row {
+  cursor: pointer;
+  transition: background-color var(--duration-fast) ease, outline var(--duration-fast) ease;
+}
+
+.table-wrap tbody tr.selectable-row:hover {
+  background-color: var(--bg-elevated);
+}
+
+.table-wrap tbody tr.is-selected {
+  background-color: rgba(11, 107, 63, 0.14) !important;
+  outline: 2px solid var(--accent-green);
+  outline-offset: -2px;
 }
 
 /* Mobile Table Transform to Cards */

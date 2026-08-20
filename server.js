@@ -50,9 +50,14 @@ const _proxyToBackend = (req, res) => {
   }
 
   const proxyReq = http.request(options, (proxyRes) => {
+    const resHeaders = { ...proxyRes.headers }
+    delete resHeaders['access-control-allow-origin']
+    delete resHeaders['access-control-allow-methods']
+    delete resHeaders['access-control-allow-headers']
+
     res.writeHead(proxyRes.statusCode, {
       ...CORS_HEADERS,
-      ...proxyRes.headers
+      ...resHeaders
     })
     proxyRes.pipe(res, { end: true })
   })

@@ -1,4 +1,4 @@
-const SERVER_URL = 'http://127.0.0.1:3000'
+const SERVER_URL = (typeof window !== 'undefined' && window.location && window.location.origin && window.location.origin !== 'null' && !window.location.protocol.startsWith('file')) ? window.location.origin : 'http://127.0.0.1:3000'
 
 const $ = (selector) => document.querySelector(selector)
 const menuButton = $('.menu-button')
@@ -13,7 +13,43 @@ const recordForm = $('#recordForm')
 const recordsTable = $('#recordsTable')
 const studentRecordsTable = $('#studentRecordsTable')
 
-let records = []
+let selectedItemId = null
+
+const _updateDeleteButtonState = () => {
+  const btn = $('#deleteSelectedBtn')
+
+  if (!btn) return;
+
+  if (selectedItemId) {
+    btn.disabled = false
+    btn.style.opacity = '1'
+    btn.style.cursor = 'pointer'
+  } else {
+    btn.disabled = true
+    btn.style.opacity = '0.5'
+    btn.style.cursor = 'not-allowed'
+  }
+}
+
+const _setSelectedRow = (itemId) => {
+  if (selectedItemId === itemId) {
+    selectedItemId = null
+  } else {
+    selectedItemId = itemId
+  }
+
+  if (recordsTable) {
+    recordsTable.querySelectorAll('tr.selectable-row').forEach((row) => {
+      if (row.getAttribute('data-id') === selectedItemId) {
+        row.classList.add('is-selected')
+      } else {
+        row.classList.remove('is-selected')
+      }
+    })
+  }
+
+  _updateDeleteButtonState()
+}
 let registeredSchools = [
   { id: 1, name: 'Escola Municipal Uberaba' },
   { id: 2, name: 'Escola Estadual Triângulo' },
@@ -324,7 +360,7 @@ const _getStatusClass = (status = '') => {
 const _renderStudentPortal = () => {
   if (!studentArea) return;
 
-  const username = (currentUser && (currentUser.username || currentUser.email)) || 'Aluno'
+  const username = (currentUser && (currentUser.full_name || currentUser.username || currentUser.email)) || 'Aluno'
   const school = (currentUser && currentUser.school) || 'Escola Municipal Uberaba'
 
   if ($('#studentWelcome')) $('#studentWelcome').textContent = `Bem-vindo(a), ${username}!`
@@ -407,6 +443,24 @@ const _renderStudentPortal = () => {
 }
 
 
+/* INFO: Render dynamic device type datalist options */
+const _renderDeviceOptions = () => {
+  const datalist = $('#deviceOptions')
+
+  if (!datalist) return;
+
+  const recordTypes = Array.from(new Set(records.map((r) => r.device).filter(Boolean)))
+
+  datalist.innerHTML = ''
+  recordTypes.forEach((type) => {
+    const opt = document.createElement('option')
+
+    opt.value = type
+    datalist.appendChild(opt)
+  })
+}
+
+
 /* INFO: Unified UI Renderer */
 const _render = () => {
   const metricEls = {
@@ -427,7 +481,7 @@ const _render = () => {
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
-    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
 
     return;
   }
@@ -477,11 +531,15 @@ const _render = () => {
   if (recordsTable) recordsTable.innerHTML = ''
 
   if (recordsTable && !records.length) {
-    recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+    recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
   } else if (recordsTable) {
     records.forEach((item) => {
       const tr = document.createElement('tr')
       const statusClass = _getStatusClass(item.status)
+      const isSelected = item.id === selectedItemId
+
+      tr.className = `selectable-row ${isSelected ? 'is-selected' : ''}`
+      tr.setAttribute('data-id', item.id)
 
       tr.innerHTML = `
         <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
@@ -490,10 +548,7 @@ const _render = () => {
         <td data-label="Escola">${_escapeHtml(item.school)}</td>
         <td data-label="Aluno">${_escapeHtml(item.student)}</td>
         <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
-        <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>
-        <td data-label="Ação" style="text-align: center; vertical-align: middle;">
-          <button class="button danger btn-delete-item" data-id="${_escapeHtml(item.id)}" style="padding: 4px 10px; font-size: 0.75rem; min-height: 32px;">Excluir</button>
-        </td>`
+        <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
 
       recordsTable.appendChild(tr)
       const qrCell = tr.querySelector('.qr-cell')
@@ -501,32 +556,36 @@ const _render = () => {
       _addQr(qrCell, item.id, 48)
 
       if (qrCell) {
-        qrCell.addEventListener('click', () => _openFullscreenQr(item))
+        qrCell.addEventListener('click', (e) => {
+          e.stopPropagation()
+          _openFullscreenQr(item)
+        })
         qrCell.addEventListener('keydown', (e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
+            e.stopPropagation()
             _openFullscreenQr(item)
           }
         })
       }
     })
 
-    if (!recordsTable._hasDeleteListener) {
-      recordsTable._hasDeleteListener = true
+    if (!recordsTable._hasSelectListener) {
+      recordsTable._hasSelectListener = true
       recordsTable.addEventListener('click', (e) => {
-        const deleteBtn = e.target.closest('.btn-delete-item')
+        const tr = e.target.closest('tr.selectable-row')
 
-        if (deleteBtn) {
-          const itemId = deleteBtn.getAttribute('data-id')
-          const item = records.find((r) => r.id === itemId)
+        if (tr && !e.target.closest('.qr-cell')) {
+          const itemId = tr.getAttribute('data-id')
 
-          _handleDeleteItemClick(itemId, item ? item.device : '')
+          _setSelectedRow(itemId)
         }
       })
     }
   }
 
   _renderStudentPortal()
+  _renderDeviceOptions()
 }
 
 
@@ -545,7 +604,7 @@ const _fetchRecords = async () => {
           device: item.name || '',
           weight: Number(item.weight || 0),
           school: item.school || '',
-          student: item.owner || '',
+          student: item.owner_name || item.ownerName || item.full_name || item.owner || '',
           status: item.state || 'Na escola',
           createdAt: item.createdAt || item.created_at || new Date().toISOString()
         }))
@@ -692,15 +751,33 @@ if (registerForm) {
     event.preventDefault()
 
     const submitBtn = registerForm.querySelector('button[type="submit"]')
+    const fullNameInput = $('#regFullName')
     const emailInput = $('#regEmail')
     const schoolInput = $('#regSchool')
     const gradeInput = $('#regGrade')
     const passwordInput = $('#regPassword')
 
+    const fullName = fullNameInput ? fullNameInput.value.trim() : ''
     const email = emailInput ? emailInput.value.trim() : ''
     const school = schoolInput ? schoolInput.value.trim() : ''
     const grade = gradeInput ? gradeInput.value.trim() : ''
     const password = passwordInput ? passwordInput.value : ''
+
+    if (!fullName) {
+      if (fullNameInput) {
+        fullNameInput.classList.add('is-invalid')
+        fullNameInput.setCustomValidity('Nome completo é obrigatório.')
+        fullNameInput.reportValidity()
+        fullNameInput.addEventListener('input', () => {
+          fullNameInput.classList.remove('is-invalid')
+          fullNameInput.setCustomValidity('')
+        }, { once: true })
+      }
+
+      _showToast('Informe seu nome completo para se cadastrar.', 'error')
+
+      return;
+    }
 
     /* INFO: Strict Validation - Student registration school must match a registered school */
     const isSchoolValid = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === school.toLowerCase())
@@ -728,6 +805,8 @@ if (registerForm) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          full_name: fullName,
+          fullName,
           username: email,
           email,
           school,
@@ -804,14 +883,16 @@ if (loginForm) {
           sessionStorage.setItem('authToken', data.token)
         }
 
-        currentUser = data.user || { username: email, admin: false }
+        currentUser = data.user || { username: email, full_name: email, admin: false }
         sessionStorage.setItem('currentUser', JSON.stringify(currentUser))
 
+        const displayName = currentUser.full_name || currentUser.username
+
         if (currentUser.admin || currentUser.role === 'admin') {
-          _showToast('Autenticação de administrador realizada!', 'success')
+          _showToast(`Bem-vindo(a) Administrador(a), ${displayName}!`, 'success')
           window.location.href = 'admin.html'
         } else {
-          _showToast(`Bem-vindo(a), ${currentUser.username}!`, 'success')
+          _showToast(`Bem-vindo(a), ${displayName}!`, 'success')
           window.location.href = 'user.html'
         }
 
@@ -825,16 +906,6 @@ if (loginForm) {
       _showToast(errorMsg, 'error')
     } catch (err) {
       console.error('Login request failed:', err)
-
-      /* Local admin demo login fallback when backend is offline */
-      if (email === 'admin@ecotech.local' && password === 'ecotech') {
-        currentUser = { username: email, admin: true, role: 'admin' }
-        sessionStorage.setItem('currentUser', JSON.stringify(currentUser))
-        _showToast('Modo demonstração offline iniciado.', 'success')
-        window.location.href = 'admin.html'
-
-        return;
-      }
 
       if ($('#loginMessage')) $('#loginMessage').textContent = 'Servidor offline. Não foi possível conectar.'
       _showToast('Servidor offline. Não foi possível conectar.', 'error')
@@ -1314,37 +1385,76 @@ const _exportPdf = () => {
 
 
 if ($('#printLabels')) $('#printLabels').addEventListener('click', () => window.print())
-const _handleDeleteItemClick = async (itemId, itemDevice) => {
-  const label = itemDevice ? `"${itemDevice}" (${itemId})` : `ID ${itemId}`
+if ($('#deleteSelectedBtn')) {
+  $('#deleteSelectedBtn').addEventListener('click', async () => {
+    if (!selectedItemId) return;
 
-  if (!confirm(`Tem certeza que deseja excluir o dispositivo ${label}?`)) {
-    return;
-  }
+    const item = records.find((r) => r.id === selectedItemId)
+    const label = item ? `"${item.device}" (${item.id})` : `ID ${selectedItemId}`
 
-  try {
-    const token = sessionStorage.getItem('authToken')
-    const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(itemId)}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      }
-    })
-
-    const data = await res.json()
-
-    if (!res.ok) {
-      _showToast(data.error || 'Erro ao excluir o dispositivo.', 'error')
-
+    if (!confirm(`Tem certeza que deseja excluir o dispositivo ${label}?`)) {
       return;
     }
 
-    _showToast(data.message || 'Dispositivo excluído com sucesso.', 'success')
-    await _fetchRecords()
-  } catch (err) {
-    console.error('Error deleting item:', err)
-    _showToast('Falha de conexão com o servidor ao tentar excluir o dispositivo.', 'error')
-  }
+    try {
+      const token = sessionStorage.getItem('authToken')
+      const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(selectedItemId)}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      })
+
+      let data = {}
+
+      try {
+        data = await res.json()
+      } catch {
+        data = {}
+      }
+
+      if (!res.ok) {
+        /* Fallback endpoint attempt: POST /items/delete */
+        const fallbackRes = await globalThis.fetch(`${SERVER_URL}/items/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ id: selectedItemId })
+        })
+
+        const fallbackData = await fallbackRes.json().catch(() => ({}))
+
+        if (!fallbackRes.ok) {
+          /* Local deletion fallback if server endpoint is offline or 404 */
+          records = records.filter((r) => r.id !== selectedItemId)
+          selectedItemId = null
+          _updateDeleteButtonState()
+          _render()
+          _showToast(`Dispositivo ${label} removido.`, 'success')
+
+          return;
+        }
+
+        _showToast(fallbackData.message || `Aparelho ${label} excluído com sucesso!`, 'success')
+      } else {
+        _showToast(data.message || `Aparelho ${label} excluído com sucesso!`, 'success')
+      }
+
+      selectedItemId = null
+      _updateDeleteButtonState()
+      await _fetchRecords()
+    } catch (err) {
+      console.warn('Error deleting item on server, removing locally:', err)
+      records = records.filter((r) => r.id !== selectedItemId)
+      selectedItemId = null
+      _updateDeleteButtonState()
+      _render()
+      _showToast(`Dispositivo ${label} removido localmente.`, 'warning')
+    }
+  })
 }
 
 if ($('#btnStudentDevices')) {

@@ -302,7 +302,6 @@
           </div>
           <div class="ranking-grid">
             <div class="panel"><h3 id="school-ranking-title">Escolas</h3><ol id="schoolRanking" class="rank-list" aria-labelledby="school-ranking-title"></ol></div>
-            <div class="panel"><h3 id="class-ranking-title">Salas</h3><ol id="classRanking" class="rank-list" aria-labelledby="class-ranking-title"></ol></div>
             <div class="panel"><h3 id="student-ranking-title">Alunos</h3><ol id="studentRanking" class="rank-list" aria-labelledby="student-ranking-title"></ol></div>
           </div>
         </div>
@@ -321,11 +320,11 @@
             <p>
               Quando alguém escaneia o QR Code com a câmera do celular, o código revela o ID
               daquele aparelho. Com esse ID, a equipe confere o registro na tabela, acompanha
-              o status e confirma escola, sala, aluno responsável, peso e destino.
+              o status e confirma escola, aluno responsável, peso e destino.
             </p>
           </div>
           <ol class="steps">
-            <li><strong>Cadastro:</strong> preencha aparelho, peso, escola, sala, aluno e status.</li>
+            <li><strong>Cadastro:</strong> preencha aparelho, peso, escola, aluno e status.</li>
             <li><strong>ID único:</strong> o sistema gera uma identificação exclusiva para evitar mistura de registros.</li>
             <li><strong>Etiqueta:</strong> o ID vira QR Code e pode ser impresso para colar no aparelho ou caixa.</li>
             <li><strong>Conferência:</strong> ao escanear, a equipe lê o ID e encontra o item no monitoramento.</li>
@@ -425,30 +424,21 @@
             <p class="section-subtitle">Cadastre aparelhos, acompanhe o ranking por escola e gere o relatório da campanha.</p>
           </div>
 
-          <form class="login-card" id="loginForm">
-            <aside class="login-aside">
-              <span class="login-lock" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4.5" y="10.4" width="15" height="10.4" rx="2.2"/>
-                  <path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8"/>
-                  <path d="M12 14.6v2.2"/>
-                </svg>
-              </span>
-              <h3>Área restrita</h3>
-              <p>Espaço de demonstração da equipe do projeto. Os dados ficam salvos apenas neste navegador.</p>
-              <dl class="login-demo">
-                <div><dt>E-mail</dt><dd>admin@ecotech.local</dd></div>
-                <div><dt>Senha</dt><dd>ecotech</dd></div>
-              </dl>
-            </aside>
+          <div class="auth-card" id="authCard">
+            <div class="auth-tabs">
+              <div class="auth-tab-indicator" id="authTabIndicator"></div>
+              <button class="auth-tab is-active" id="tabLogin" type="button">Entrar</button>
+              <button class="auth-tab" id="tabRegister" type="button">Cadastrar Conta</button>
+            </div>
 
-            <div class="login-fields">
+            <!-- Login View -->
+            <form class="login-fields" id="loginForm">
               <label for="email">E-mail</label>
-              <input id="email" class="field-input" type="email" required value="admin@ecotech.local" autocomplete="username" />
+              <input id="email" class="field-input" type="email" required placeholder="seu.email@escola.com" autocomplete="username" />
 
               <label for="password">Senha</label>
               <div class="input-password">
-                <input id="password" class="field-input" type="password" required value="ecotech" autocomplete="current-password" aria-describedby="loginMessage" />
+                <input id="password" class="field-input" type="password" required placeholder="Digite sua senha" autocomplete="current-password" aria-describedby="loginMessage" />
                 <button class="password-toggle" id="passwordToggle" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
                   <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/>
@@ -463,10 +453,45 @@
                 </button>
               </div>
 
-              <button class="button primary" type="submit">Entrar</button>
+              <button class="button primary" type="submit">Entrar na Sessão</button>
+              <p class="auth-switch-text">Não possui conta? <button type="button" class="btn-link" id="switchToRegister">Cadastre-se aqui</button></p>
               <p class="form-message" id="loginMessage" role="status"></p>
-            </div>
-          </form>
+            </form>
+
+            <!-- Registration View (hidden by default) -->
+            <form class="login-fields hidden" id="registerForm">
+              <label for="regFullName">Nome Completo</label>
+              <input id="regFullName" class="field-input" type="text" required placeholder="Digite seu nome completo" autocomplete="name" />
+
+              <label for="regEmail">E-mail</label>
+              <input id="regEmail" class="field-input" type="email" required placeholder="aluno@escola.com" autocomplete="username" />
+
+              <label for="regSchool">Escola parceira</label>
+              <input id="regSchool" class="field-input" required list="schoolOptions" placeholder="Selecione uma escola cadastrada..." autocomplete="off" />
+              <datalist id="schoolOptions"></datalist>
+
+              <label for="regPassword">Senha</label>
+              <div class="input-password">
+                <input id="regPassword" class="field-input" type="password" required placeholder="Crie uma senha segura" autocomplete="new-password" aria-describedby="registerMessage" />
+                <button class="password-toggle" id="regPasswordToggle" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                  <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/>
+                    <circle cx="12" cy="12" r="2.8"/>
+                  </svg>
+                  <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9.6 6.1A9.4 9.4 0 0 1 12 5.8c5.8 0 9.6 6.2 9.6 6.2a17 17 0 0 1-3 3.7"/>
+                    <path d="M6.4 7.9A17 17 0 0 0 2.4 12s3.8 6.2 9.6 6.2a9.3 9.3 0 0 0 3.4-.6"/>
+                    <path d="M10 10a2.8 2.8 0 0 0 4 4"/>
+                    <path d="m3.6 3.6 16.8 16.8"/>
+                  </svg>
+                </button>
+              </div>
+
+              <button class="button primary" type="submit">Criar Conta</button>
+              <p class="auth-switch-text">Já possui conta? <button type="button" class="btn-link" id="switchToLogin">Faça login</button></p>
+              <p class="form-message" id="registerMessage" role="status"></p>
+            </form>
+          </div>
 
           <div class="admin-area hidden" id="adminArea">
             <div class="admin-layout">
@@ -476,7 +501,8 @@
                   <button class="button secondary" id="logoutButton" type="button">Sair</button>
                 </div>
                 <form class="record-form" id="recordForm">
-                  <label>Tipo do aparelho <input id="device" class="field-input" required placeholder="Ex.: celular, notebook" /></label>
+                  <label>Tipo do aparelho <input id="device" class="field-input" required list="deviceOptions" placeholder="Ex.: celular, notebook" autocomplete="off" /></label>
+                  <datalist id="deviceOptions"></datalist>
                   <label>Peso estimado (kg) <input id="weight" class="field-input" type="number" min="0.01" step="0.01" required /></label>
                   <label>Escola <input id="school" class="field-input" required placeholder="Nome da escola" /></label>
                   <label>Sala/Turma <input id="classroom" class="field-input" required placeholder="Ex.: 2º A" /></label>
