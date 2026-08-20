@@ -1412,6 +1412,7 @@ const _exportPdf = () => {
 }
 
 
+if ($('#exportPdf')) $('#exportPdf').addEventListener('click', _exportPdf)
 if ($('#printLabels')) $('#printLabels').addEventListener('click', () => window.print())
 if ($('#deleteSelectedBtn')) {
   $('#deleteSelectedBtn').addEventListener('click', async () => {
