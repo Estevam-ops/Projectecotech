@@ -70,19 +70,7 @@ try {
   /* INFO: Column already exists. */
 }
 
-/* INFO: Seed default schools if none exist */
-const schoolCount = db.prepare('SELECT COUNT(*) as count FROM schools').get()
-if (schoolCount && schoolCount.count === 0) {
-  const seedSchools = [
-    'Escola Municipal Uberaba',
-    'Escola Estadual Triângulo',
-    'IFTM Campus Uberaba Parque Tecnológico',
-    'Escola Municipal Marechal Humberto'
-  ]
-  const now = new Date().toISOString()
-  const insertStmt = db.prepare('INSERT INTO schools (name, city, created_at) VALUES (?, ?, ?)')
-  seedSchools.forEach((schoolName) => insertStmt.run(schoolName, 'Uberaba', now))
-}
+
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -631,20 +619,6 @@ const server = http.createServer(async (req, res) => {
 })
 
 server.listen(PORT, () => {
-  const defaultAdmin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin@ecotech.local')
-  if (!defaultAdmin) {
-    const salt = crypto.randomBytes(16).toString('hex')
-    const passwordHash = _hashPassword('ecotech', salt)
-    db.prepare('INSERT INTO users (username, full_name, password_hash, salt, role, admin) VALUES (?, ?, ?, ?, ?, ?)').run(
-      'admin@ecotech.local',
-      'Administrador EcoTech',
-      passwordHash,
-      salt,
-      'admin',
-      1
-    )
-  }
-
   /* INFO: Server started listener. */
   console.log(`Server running on port ${PORT}`)
 })

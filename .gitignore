@@ -2,5 +2,6 @@
 
 !.gitignore
 !index.js
+!create-admin.js
 !package.json
 !README.md
