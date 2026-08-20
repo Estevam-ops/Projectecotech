@@ -382,17 +382,25 @@ const _renderStudentPortal = () => {
   if (!studentArea) return;
 
   const username = (currentUser && (currentUser.full_name || currentUser.username || currentUser.email)) || 'Aluno'
-  const school = (currentUser && currentUser.school) || 'Escola Municipal Uberaba'
+  const school = (currentUser && currentUser.school) || ''
 
   if ($('#studentWelcome')) $('#studentWelcome').textContent = `Bem-vindo(a), ${username}!`
-  if ($('#studentSub')) $('#studentSub').textContent = `Escola parceira: ${school}`
+  if ($('#studentSub')) $('#studentSub').textContent = school ? `Escola parceira: ${school}` : ''
 
-  /* Filter items matching student's username or email */
+  const userFullName = (currentUser && currentUser.full_name ? currentUser.full_name : '').trim().toLowerCase()
+  const userUsername = (currentUser && currentUser.username ? currentUser.username : '').trim().toLowerCase()
+  const userEmail = (currentUser && currentUser.email ? currentUser.email : '').trim().toLowerCase()
+
+  /* Filter items matching student's exact full_name, username, or email */
   const myItems = records.filter((item) => {
-    const owner = (item.student || '').toLowerCase()
-    const target = username.toLowerCase()
+    const owner = (item.student || '').trim().toLowerCase()
+    if (!owner) return false
 
-    return owner === target || target.includes(owner) || owner.includes(target)
+    return (
+      (userFullName && owner === userFullName) ||
+      (userUsername && owner === userUsername) ||
+      (userEmail && owner === userEmail)
+    )
   })
 
   const displayList = myItems
