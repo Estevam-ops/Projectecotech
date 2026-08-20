@@ -179,12 +179,13 @@ const _openFullscreenQr = (item) => {
 
 
 /* INFO: Server-side school deletion with product dependency check */
-const _deleteSchool = async (schoolObj) => {
+const _deleteSchool = async (schoolObj, targetBtn) => {
   const name = typeof schoolObj === 'string' ? schoolObj : schoolObj.name
   const id = typeof schoolObj === 'object' ? schoolObj.id : null
 
-  if (!confirm(`Deseja realmente remover a escola "${name}"?`)) {
-    return;
+  if (targetBtn) {
+    targetBtn.disabled = true
+    targetBtn.style.opacity = '0.5'
   }
 
   try {
@@ -220,6 +221,11 @@ const _deleteSchool = async (schoolObj) => {
     registeredSchools = registeredSchools.filter((s) => (typeof s === 'string' ? s : s.name).toLowerCase() !== name.toLowerCase())
     _renderSchoolsUI()
     _showToast(`Escola "${name}" removida localmente.`, 'warning')
+  } finally {
+    if (targetBtn) {
+      targetBtn.disabled = false
+      targetBtn.style.opacity = '1'
+    }
   }
 }
 
@@ -280,7 +286,7 @@ const _renderSchoolsUI = () => {
       delBtn.style.padding = '2px 8px'
       delBtn.style.fontSize = '0.7rem'
       delBtn.textContent = 'Excluir'
-      delBtn.addEventListener('click', () => _deleteSchool(s))
+      delBtn.addEventListener('click', (e) => _deleteSchool(s, e.currentTarget))
 
       item.appendChild(textSpan)
       item.appendChild(delBtn)
