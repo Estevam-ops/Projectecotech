@@ -499,9 +499,10 @@ const _render = () => {
 
   if (metricEls.topSchool) {
     if (stats.school[0]) {
-      const truncatedSchool = _truncateText(stats.school[0][0], 12)
-      metricEls.topSchool.textContent = `${truncatedSchool} (${stats.school[0][1].toFixed(2)} kg)`
-      metricEls.topSchool.title = stats.school[0][0]
+      const schoolName = stats.school[0][0]
+      const weightStr = `(${stats.school[0][1].toFixed(2)} kg)`
+      metricEls.topSchool.innerHTML = `<span class="metric-title-text">${_escapeHtml(schoolName)}</span> <span class="metric-weight-text">${weightStr}</span>`
+      metricEls.topSchool.title = schoolName
     } else {
       metricEls.topSchool.textContent = '-'
       metricEls.topSchool.removeAttribute('title')
@@ -510,9 +511,10 @@ const _render = () => {
 
   if (metricEls.topStudent) {
     if (stats.student[0]) {
-      const truncatedStudent = _truncateText(stats.student[0][0], 12)
-      metricEls.topStudent.textContent = `${truncatedStudent} (${stats.student[0][1].toFixed(2)} kg)`
-      metricEls.topStudent.title = stats.student[0][0]
+      const studentName = stats.student[0][0]
+      const weightStr = `(${stats.student[0][1].toFixed(2)} kg)`
+      metricEls.topStudent.innerHTML = `<span class="metric-title-text">${_escapeHtml(studentName)}</span> <span class="metric-weight-text">${weightStr}</span>`
+      metricEls.topStudent.title = studentName
     } else {
       metricEls.topStudent.textContent = '-'
       metricEls.topStudent.removeAttribute('title')

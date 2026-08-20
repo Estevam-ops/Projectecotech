@@ -1354,17 +1354,34 @@ body {
 }
 
 .metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
   font-family: var(--font-display);
   font-size: clamp(0.95rem, 0.8vw + 0.6rem, 1.25rem);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
   margin-bottom: 2px;
-  white-space: nowrap;
+  overflow: hidden;
+}
+
+.metric-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-  display: block;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.metric-weight-text {
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .metric-label {
