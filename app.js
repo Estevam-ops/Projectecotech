@@ -1,5 +1,4 @@
 const SERVER_URL = 'http://127.0.0.1:3000'
-const LOGIN = { email: 'admin@ecotech.local', password: 'ecotech' }
 
 const $ = (selector) => document.querySelector(selector)
 const menuButton = $('.menu-button')
@@ -16,13 +15,12 @@ let authToken = null
 
 
 const _escapeHtml = (value) => {
-  return String(value).replace(/[&<>'"]/g, (char) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;'
-  })[char])
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/'/g, '&#39;')
+    .replace(/"/g, '&quot;')
 }
 
 
@@ -34,17 +32,29 @@ const _createId = () => {
 }
 
 
-const _totalWeight = (list = records) => {
-  return list.reduce((sum, item) => sum + Number(item.weight || 0), 0)
-}
+/* INFO: Single-pass stats calculator for total weight and school/classroom/student rankings */
+const _calcStats = () => {
+  const totals = { school: new Map(), classroom: new Map(), student: new Map() }
+  let totalWeight = 0
 
+  records.forEach((item) => {
+    const weight = Number(item.weight || 0)
 
-const _rankBy = (field) => {
-  const totals = new Map()
+    totalWeight += weight
 
-  records.forEach((item) => totals.set(item[field], (totals.get(item[field]) || 0) + Number(item.weight || 0)))
+    ;['school', 'classroom', 'student'].forEach((field) => {
+      const val = item[field]
 
-  return [...totals.entries()].sort((a, b) => b[1] - a[1])
+      if (val) totals[field].set(val, (totals[field].get(val) || 0) + weight)
+    })
+  })
+
+  return {
+    totalWeight,
+    school: [...totals.school.entries()].sort((a, b) => b[1] - a[1]),
+    classroom: [...totals.classroom.entries()].sort((a, b) => b[1] - a[1]),
+    student: [...totals.student.entries()].sort((a, b) => b[1] - a[1])
+  }
 }
 
 
@@ -68,79 +78,60 @@ const _demoRecords = () => {
 }
 
 
-const _renderMetrics = () => {
-  const totalItemsEl = $('#totalItems')
-  const totalWeightEl = $('#totalWeight')
-  const topSchoolEl = $('#topSchool')
-  const topStudentEl = $('#topStudent')
+/* INFO: Unified UI Renderer */
+const _render = () => {
+  const metricEls = {
+    totalItems: $('#totalItems'),
+    totalWeight: $('#totalWeight'),
+    topSchool: $('#topSchool'),
+    topStudent: $('#topStudent')
+  }
 
   if (serverDown) {
-    if (totalItemsEl) totalItemsEl.textContent = 'Servidor offline'
-    if (totalWeightEl) totalWeightEl.textContent = 'Servidor offline'
-    if (topSchoolEl) topSchoolEl.textContent = 'Servidor offline'
-    if (topStudentEl) topStudentEl.textContent = 'Servidor offline'
+    Object.values(metricEls).forEach((el) => {
+      if (el) el.textContent = 'Servidor offline'
+    })
+
+    ;['#schoolRanking', '#classRanking', '#studentRanking'].forEach((sel) => {
+      const el = $(sel)
+
+      if (el) el.innerHTML = '<li>Servidor offline. Não foi possível carregar o ranking.</li>'
+    })
+
+    recordsTable.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+    labels.innerHTML = ''
 
     return;
   }
 
-  const schools = _rankBy('school')
-  const students = _rankBy('student')
+  const stats = _calcStats()
 
-  if (totalItemsEl) totalItemsEl.textContent = records.length
-  if (totalWeightEl) totalWeightEl.textContent = `${_totalWeight().toFixed(2)} kg`
+  if (metricEls.totalItems) metricEls.totalItems.textContent = records.length
+  if (metricEls.totalWeight) metricEls.totalWeight.textContent = `${stats.totalWeight.toFixed(2)} kg`
+  if (metricEls.topSchool) metricEls.topSchool.textContent = stats.school[0] ? `${stats.school[0][0]} (${stats.school[0][1].toFixed(2)} kg)` : '-'
+  if (metricEls.topStudent) metricEls.topStudent.textContent = stats.student[0] ? `${stats.student[0][0]} (${stats.student[0][1].toFixed(2)} kg)` : '-'
 
-  if (topSchoolEl) {
-    topSchoolEl.textContent = schools[0] ? `${schools[0][0]} (${schools[0][1].toFixed(2)} kg)` : '-'
-  }
+  const rankTargets = [
+    { target: $('#schoolRanking'), rows: stats.school },
+    { target: $('#classRanking'), rows: stats.classroom },
+    { target: $('#studentRanking'), rows: stats.student }
+  ]
 
-  if (topStudentEl) {
-    topStudentEl.textContent = students[0] ? `${students[0][0]} (${students[0][1].toFixed(2)} kg)` : '-'
-  }
-}
+  rankTargets.forEach(({ target, rows }) => {
+    if (!target) return;
 
+    target.innerHTML = rows.length ? '' : '<li>Nenhum registro ainda.</li>'
 
-const _fillRanking = (selector, rows) => {
-  const target = $(selector)
+    rows.slice(0, 10).forEach(([name, weight]) => {
+      const li = document.createElement('li')
 
-  if (!target) return;
-
-  if (serverDown) {
-    target.innerHTML = '<li>Servidor offline. Não foi possível carregar o ranking.</li>'
-
-    return;
-  }
-
-  target.innerHTML = rows.length ? '' : '<li>Nenhum registro ainda.</li>'
-
-  rows.slice(0, 10).forEach(([name, weight]) => {
-    const li = document.createElement('li')
-
-    li.textContent = `${name}: ${weight.toFixed(2)} kg`
-
-    target.appendChild(li)
+      li.textContent = `${name}: ${weight.toFixed(2)} kg`
+      target.appendChild(li)
+    })
   })
-}
 
-
-const _renderRankings = () => {
-  _fillRanking('#schoolRanking', _rankBy('school'))
-  _fillRanking('#classRanking', _rankBy('classroom'))
-  _fillRanking('#studentRanking', _rankBy('student'))
-}
-
-
-const _renderTable = () => {
   recordsTable.innerHTML = ''
-
-  if (serverDown) {
-    const tr = document.createElement('tr')
-
-    tr.innerHTML = `<td colspan="8" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td>`
-
-    recordsTable.appendChild(tr)
-
-    return;
-  }
+  labels.innerHTML = ''
 
   records.forEach((item) => {
     const tr = document.createElement('tr')
@@ -152,14 +143,7 @@ const _renderTable = () => {
     recordsTable.appendChild(tr)
 
     _addQr(tr.querySelector('.qr-cell'), item.id, 74)
-  })
-}
 
-
-const _renderLabels = () => {
-  labels.innerHTML = ''
-
-  records.forEach((item) => {
     const card = document.createElement('article')
 
     card.className = 'label-card'
@@ -170,14 +154,6 @@ const _renderLabels = () => {
 
     _addQr(card.querySelector('.qr'), item.id, 128)
   })
-}
-
-
-const _render = () => {
-  _renderMetrics()
-  _renderRankings()
-  _renderTable()
-  _renderLabels()
 }
 
 
@@ -279,26 +255,24 @@ recordForm.addEventListener('submit', async (event) => {
   event.preventDefault()
 
   const textInputs = [$('#device'), $('#school'), $('#classroom'), $('#student')]
+  const weightInput = $('#weight')
 
-  textInputs.forEach((input) => input.setCustomValidity(''))
+  textInputs.concat(weightInput).forEach((input) => input.setCustomValidity(''))
 
   const blankInput = textInputs.find((input) => !input.value.trim())
 
   if (blankInput) {
     blankInput.setCustomValidity('Preencha este campo com um texto válido.')
     blankInput.reportValidity()
-    blankInput.addEventListener('input', () => blankInput.setCustomValidity(''), { once: true })
 
     return;
   }
 
-  const weightInput = $('#weight')
   const weight = Number(weightInput.value)
 
   if (!Number.isFinite(weight) || weight <= 0) {
     weightInput.setCustomValidity('Informe um peso maior que zero.')
     weightInput.reportValidity()
-    weightInput.addEventListener('input', () => weightInput.setCustomValidity(''), { once: true })
 
     return;
   }
@@ -411,7 +385,6 @@ const _exportPdf = () => {
   const ink = (color) => doc.setTextColor(color[0], color[1], color[2])
   const stroke = (color) => doc.setDrawColor(color[0], color[1], color[2])
 
-
   const _clip = (value, width) => {
     let text = value === undefined || value === null || value === '' ? '-' : String(value)
 
@@ -423,7 +396,6 @@ const _exportPdf = () => {
 
     return `${text}...`
   }
-
 
   const _sectionTitle = (label, y) => {
     doc.setFont('helvetica', 'bold')
@@ -439,42 +411,50 @@ const _exportPdf = () => {
     return y + 9
   }
 
+  fill(REPORT_COLORS.ground)
+  doc.rect(0, 0, pageW, 31, 'F')
 
-  const _drawBanner = () => {
-    fill(REPORT_COLORS.ground)
-    doc.rect(0, 0, pageW, 31, 'F')
+  fill(REPORT_COLORS.lime)
+  doc.rect(0, 31, pageW, 1.4, 'F')
 
-    fill(REPORT_COLORS.lime)
-    doc.rect(0, 31, pageW, 1.4, 'F')
+  ink(REPORT_COLORS.lime)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(7)
+  doc.text('ECOTECH · IFTM CAMPUS UBERABA PARQUE TECNOLÓGICO', margin, 12, { charSpace: 0.5 })
 
-    ink(REPORT_COLORS.lime)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(7)
-    doc.text('ECOTECH · IFTM CAMPUS UBERABA PARQUE TECNOLÓGICO', margin, 12, { charSpace: 0.5 })
+  ink(REPORT_COLORS.white)
+  doc.setFontSize(18)
+  doc.text('Relatório de resíduos eletrônicos', margin, 22)
 
-    ink(REPORT_COLORS.white)
-    doc.setFontSize(18)
-    doc.text('Relatório de resíduos eletrônicos', margin, 22)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(7.5)
 
+  ink([158, 172, 163])
+  doc.text(`Gerado em ${stamp}`, pageW - margin, 22, { align: 'right' })
+
+  let y = 43
+
+  if (!records.length) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
+    doc.setFontSize(10)
 
-    ink([158, 172, 163])
-    doc.text(`Gerado em ${stamp}`, pageW - margin, 22, { align: 'right' })
-  }
+    ink(REPORT_COLORS.muted)
+    doc.text('Nenhum aparelho cadastrado até o momento.', margin, y)
+  } else {
+    const stats = _calcStats()
 
+    y = _sectionTitle('Resumo da campanha', y)
 
-  const _drawSummary = (y) => {
-    const cells = [
+    const summaryCells = [
       { label: 'Aparelhos cadastrados', value: String(records.length) },
-      { label: 'Peso total arrecadado', value: `${_totalWeight().toFixed(2)} kg` },
-      { label: 'Escolas participantes', value: String(_rankBy('school').length) },
-      { label: 'Alunos envolvidos', value: String(_rankBy('student').length) }
+      { label: 'Peso total arrecadado', value: `${stats.totalWeight.toFixed(2)} kg` },
+      { label: 'Escolas participantes', value: String(stats.school.length) },
+      { label: 'Alunos envolvidos', value: String(stats.student.length) }
     ]
     const gap = 4
     const cellW = (contentW - gap * 3) / 4
 
-    cells.forEach((cell, index) => {
+    summaryCells.forEach((cell, index) => {
       const x = margin + index * (cellW + gap)
 
       fill(REPORT_COLORS.paper)
@@ -493,32 +473,27 @@ const _exportPdf = () => {
       doc.text(_clip(cell.label, cellW - 8), x + 4.5, y + 16.6)
     })
 
-    return y + 21 + 10
-  }
+    y += 31
 
-
-  const _drawHighlights = (y) => {
-    let currentY = _sectionTitle('Destaques por peso arrecadado', y)
+    y = _sectionTitle('Destaques por peso arrecadado', y)
 
     const groups = [
-      { title: 'Escolas', rows: _rankBy('school').slice(0, 5) },
-      { title: 'Salas', rows: _rankBy('classroom').slice(0, 5) },
-      { title: 'Alunos', rows: _rankBy('student').slice(0, 5) }
+      { title: 'Escolas', rows: stats.school.slice(0, 5) },
+      { title: 'Salas', rows: stats.classroom.slice(0, 5) },
+      { title: 'Alunos', rows: stats.student.slice(0, 5) }
     ]
-    const gap = 6
-    const colW = (contentW - gap * 2) / 3
-
+    const colW = (contentW - 12) / 3
     let lines = 1
 
     groups.forEach((group, index) => {
-      const x = margin + index * (colW + gap)
+      const x = margin + index * (colW + 6)
 
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(8.5)
       ink(REPORT_COLORS.ink)
-      doc.text(group.title, x, currentY)
+      doc.text(group.title, x, y)
 
-      let rowY = currentY + 6
+      let rowY = y + 6
 
       if (!group.rows.length) {
         doc.setFont('helvetica', 'italic')
@@ -546,56 +521,52 @@ const _exportPdf = () => {
       lines = Math.max(lines, group.rows.length || 1)
     })
 
-    return currentY + 6 + lines * 5 + 7
-  }
+    y += 6 + lines * 5 + 7
 
+    y = _sectionTitle(`Registros (${records.length})`, y)
 
-  const _drawTableHead = (y) => {
-    fill(REPORT_COLORS.ground)
-    doc.rect(margin, y, contentW, 7.4, 'F')
+    const drawTableHead = (headY) => {
+      fill(REPORT_COLORS.ground)
+      doc.rect(margin, headY, contentW, 7.4, 'F')
 
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(6.8)
-    ink(REPORT_COLORS.white)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(6.8)
+      ink(REPORT_COLORS.white)
 
-    let x = margin
+      let x = margin
 
-    REPORT_COLUMNS.forEach((col) => {
-      const right = col.align === 'right'
+      REPORT_COLUMNS.forEach((col) => {
+        const right = col.align === 'right'
 
-      doc.text(col.label.toUpperCase(), right ? x + col.width - 2.5 : x + 2.5, y + 4.9, {
-        align: right ? 'right' : 'left',
-        charSpace: 0.3
+        doc.text(col.label.toUpperCase(), right ? x + col.width - 2.5 : x + 2.5, headY + 4.9, {
+          align: right ? 'right' : 'left',
+          charSpace: 0.3
+        })
+
+        x += col.width
       })
 
-      x += col.width
-    })
+      return headY + 7.4
+    }
 
-    return y + 7.4
-  }
-
-
-  const _drawTable = (y) => {
-    let currentY = _sectionTitle(`Registros (${records.length})`, y)
-
-    currentY = _drawTableHead(currentY)
+    y = drawTableHead(y)
 
     const rowH = 6.6
 
     records.forEach((item, index) => {
-      if (currentY + rowH > pageH - 20) {
+      if (y + rowH > pageH - 20) {
         doc.addPage()
-        currentY = _drawTableHead(margin + 2)
+        y = drawTableHead(margin + 2)
       }
 
       if (index % 2 === 1) {
         fill(REPORT_COLORS.zebra)
-        doc.rect(margin, currentY, contentW, rowH, 'F')
+        doc.rect(margin, y, contentW, rowH, 'F')
       }
 
       stroke(REPORT_COLORS.line)
       doc.setLineWidth(0.2)
-      doc.line(margin, currentY + rowH, margin + contentW, currentY + rowH)
+      doc.line(margin, y + rowH, margin + contentW, y + rowH)
 
       let x = margin
 
@@ -612,75 +583,51 @@ const _exportPdf = () => {
 
         const right = col.align === 'right'
 
-        doc.text(_clip(value, col.width - 5), right ? x + col.width - 2.5 : x + 2.5, currentY + 4.4, {
+        doc.text(_clip(value, col.width - 5), right ? x + col.width - 2.5 : x + 2.5, y + 4.4, {
           align: right ? 'right' : 'left'
         })
 
         x += col.width
       })
 
-      currentY += rowH
+      y += rowH
     })
 
-    if (currentY + 7.4 > pageH - 20) {
+    if (y + 7.4 > pageH - 20) {
       doc.addPage()
-      currentY = margin + 2
+      y = margin + 2
     }
 
     fill(REPORT_COLORS.paper)
-    doc.rect(margin, currentY, contentW, 7.4, 'F')
+    doc.rect(margin, y, contentW, 7.4, 'F')
 
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7.2)
 
     ink(REPORT_COLORS.ink)
-    doc.text(`TOTAL · ${records.length} aparelhos`, margin + 2.5, currentY + 4.9, { charSpace: 0.3 })
+    doc.text(`TOTAL · ${records.length} aparelhos`, margin + 2.5, y + 4.9, { charSpace: 0.3 })
 
     ink(REPORT_COLORS.green)
-    doc.text(`${_totalWeight().toFixed(2)} kg`, margin + contentW - 2.5, currentY + 4.9, { align: 'right' })
-
-    return currentY + 7.4
+    doc.text(`${stats.totalWeight.toFixed(2)} kg`, margin + contentW - 2.5, y + 4.9, { align: 'right' })
   }
 
+  const pages = doc.getNumberOfPages()
 
-  const _drawFooters = () => {
-    const pages = doc.getNumberOfPages()
+  for (let page = 1; page <= pages; page += 1) {
+    doc.setPage(page)
 
-    for (let page = 1; page <= pages; page += 1) {
-      doc.setPage(page)
+    stroke(REPORT_COLORS.line)
+    doc.setLineWidth(0.3)
+    doc.line(margin, pageH - 12.5, pageW - margin, pageH - 12.5)
 
-      stroke(REPORT_COLORS.line)
-      doc.setLineWidth(0.3)
-      doc.line(margin, pageH - 12.5, pageW - margin, pageH - 12.5)
-
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-
-      ink(REPORT_COLORS.muted)
-      doc.text('EcoTech IFTM UPT · Coleta de resíduos eletrônicos', margin, pageH - 8)
-      doc.text(`Página ${page} de ${pages}`, pageW - margin, pageH - 8, { align: 'right' })
-    }
-  }
-
-  _drawBanner()
-
-  let y = 43
-
-  if (!records.length) {
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
+    doc.setFontSize(7)
 
     ink(REPORT_COLORS.muted)
-    doc.text('Nenhum aparelho cadastrado até o momento.', margin, y)
-  } else {
-    y = _sectionTitle('Resumo da campanha', y)
-    y = _drawSummary(y)
-    y = _drawHighlights(y)
-
-    _drawTable(y)
+    doc.text('EcoTech IFTM UPT · Coleta de resíduos eletrônicos', margin, pageH - 8)
+    doc.text(`Página ${page} de ${pages}`, pageW - margin, pageH - 8, { align: 'right' })
   }
 
-  _drawFooters()
   doc.save(`relatorio-ecotech-${now.toISOString().slice(0, 10)}.pdf`)
 }
 
@@ -799,16 +746,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (!mapContainer) return;
 
-  const _announceRoute = (message) => {
-    if (routeStatus) routeStatus.textContent = message
-  }
-
-  const _showRouteError = (message) => {
-    if (instructionsDiv) instructionsDiv.textContent = message
-
-    _announceRoute(message)
-  }
-
   if (!window.L || typeof window.L.map !== 'function' || typeof window.L.tileLayer !== 'function') {
     const message = 'Mapa indisponível. Verifique sua conexão e recarregue a página.'
 
@@ -821,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (button) button.disabled = true
     })
 
-    _announceRoute(message)
+    if (routeStatus) routeStatus.textContent = message
 
     return;
   }
@@ -887,17 +824,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const _calcularDistancia = (lat1, lon1, lat2, lon2) => {
-    const R = 6371
-    const dLat = ((lat2 - lat1) * Math.PI) / 180
-    const dLon = ((lon2 - lon1) * Math.PI) / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2)
+    const rad = Math.PI / 180
+    const dLat = (lat2 - lat1) * rad
+    const dLon = (lon2 - lon1) * rad
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2
 
-    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
+    return 6371 * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)))
   }
 
   const gpsBtn = document.getElementById('gps-btn')
@@ -944,12 +876,10 @@ document.addEventListener('DOMContentLoaded', () => {
       let originCoords = null
       let destCoords = null
 
-      if (originText === 'Minha localização atual (GPS)' && userCurrentCoords) {
+      if ((originText === '' || originText.includes('GPS')) && userCurrentCoords) {
         originCoords = userCurrentCoords
       } else if (originText !== '') {
         originCoords = await _geocode(originText)
-      } else if (userCurrentCoords) {
-        originCoords = userCurrentCoords
       } else {
         alert('Por favor, digite um endereço/bairro de origem ou clique em GPS.')
 
@@ -982,27 +912,19 @@ document.addEventListener('DOMContentLoaded', () => {
           destCoords = await _geocode(destText)
         }
       } else {
-        let maisProximo = null
-        let menorDist = Infinity
+        const nearest = eligiblePoints.reduce(
+          (best, ponto) => {
+            const dist = _calcularDistancia(originCoords.lat, originCoords.lng, ponto.lat, ponto.lng)
 
-        eligiblePoints.forEach((ponto) => {
-          const dist = _calcularDistancia(
-            originCoords.lat,
-            originCoords.lng,
-            ponto.lat,
-            ponto.lng
-          )
+            return dist < best.dist ? { ponto, dist } : best
+          },
+          { ponto: null, dist: Infinity }
+        ).ponto
 
-          if (dist < menorDist) {
-            menorDist = dist
-            maisProximo = ponto
-          }
-        })
-
-        if (maisProximo) {
+        if (nearest) {
           destCoords = {
-            lat: maisProximo.lat,
-            lng: maisProximo.lng
+            lat: nearest.lat,
+            lng: nearest.lng
           }
         }
       }
@@ -1031,7 +953,10 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       if (!window.L.Routing || typeof window.L.Routing.control !== 'function') {
-        _showRouteError('A rota detalhada está indisponível. O mapa mostra apenas a origem e o destino.')
+        const routeErr = 'A rota detalhada está indisponível. O mapa mostra apenas a origem e o destino.'
+
+        if (instructionsDiv) instructionsDiv.textContent = routeErr
+        if (routeStatus) routeStatus.textContent = routeErr
 
         map.fitBounds(
           [
@@ -1060,11 +985,11 @@ document.addEventListener('DOMContentLoaded', () => {
       })
 
       routingControl.on('routesfound', () => {
-        _announceRoute('Rota calculada. As instruções estão disponíveis antes do mapa.')
+        if (routeStatus) routeStatus.textContent = 'Rota calculada. As instruções estão disponíveis antes do mapa.'
       })
 
       routingControl.on('routingerror', () => {
-        _announceRoute('Não foi possível calcular a rota solicitada. Tente outro endereço.')
+        if (routeStatus) routeStatus.textContent = 'Não foi possível calcular a rota solicitada. Tente outro endereço.'
       })
 
       routingControl.addTo(map)
@@ -1093,45 +1018,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const root = document.documentElement
   const themeToggle = document.getElementById('themeToggle')
 
-  const _currentTheme = () => {
-    const chosen = root.getAttribute('data-theme')
-
-    if (chosen) return chosen
-
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-
-  const _syncToggleLabel = () => {
-    if (!themeToggle) return;
-
-    const next = _currentTheme() === 'dark' ? 'claro' : 'escuro'
-
-    themeToggle.setAttribute('aria-label', `Mudar para o tema ${next}`)
-    themeToggle.setAttribute('title', `Mudar para o tema ${next}`)
-  }
-
   if (themeToggle) {
-    themeToggle.addEventListener('click', () => {
-      const next = _currentTheme() === 'dark' ? 'light' : 'dark'
+    const updateThemeLabel = () => {
+      const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      const next = current === 'dark' ? 'claro' : 'escuro'
 
-      root.setAttribute('data-theme', next)
-      _syncToggleLabel()
+      themeToggle.setAttribute('aria-label', `Mudar para o tema ${next}`)
+      themeToggle.setAttribute('title', `Mudar para o tema ${next}`)
+    }
+
+    themeToggle.addEventListener('click', () => {
+      const current = root.getAttribute('data-theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+
+      root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark')
+      updateThemeLabel()
     })
 
-    _syncToggleLabel()
-  }
+    updateThemeLabel()
 
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (!root.getAttribute('data-theme')) _syncToggleLabel()
-  })
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+      if (!root.getAttribute('data-theme')) updateThemeLabel()
+    })
+  }
 
   const nav = document.getElementById('siteNav')
 
   if (nav) {
-    const _updateNav = () => nav.classList.toggle('is-scrolled', window.scrollY > 8)
+    const checkScroll = () => nav.classList.toggle('is-scrolled', window.scrollY > 8)
 
-    _updateNav()
-    window.addEventListener('scroll', _updateNav, { passive: true })
+    checkScroll()
+    window.addEventListener('scroll', checkScroll, { passive: true })
   }
 
   const navMenu = document.getElementById('menu')
