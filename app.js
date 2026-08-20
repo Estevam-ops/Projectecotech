@@ -64,12 +64,7 @@ const _setSelectedRow = (itemId) => {
 
   _updateDeleteButtonState()
 }
-let registeredSchools = [
-  { id: 1, name: 'Escola Municipal Uberaba' },
-  { id: 2, name: 'Escola Estadual Triângulo' },
-  { id: 3, name: 'IFTM Campus Uberaba Parque Tecnológico' },
-  { id: 4, name: 'Escola Municipal Marechal Humberto' }
-]
+let registeredSchools = []
 let serverDown = false
 let authToken = sessionStorage.getItem('authToken') || null
 let currentUser = null
