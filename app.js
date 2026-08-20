@@ -1486,6 +1486,12 @@ const _printQrLabels = () => {
     _addQr(qrBox, item.id, 160)
   })
 
+  const cleanup = () => {
+    if (printContainer) printContainer.remove()
+  }
+
+  window.addEventListener('afterprint', cleanup, { once: true })
+
   window.print()
 }
 

@@ -2572,6 +2572,11 @@ footer a:hover { color: var(--accent-green); }
 }
 
 /* ============ Print Styles (Raw QR Codes Only, No Headers/Footers/URL) ============ */
+.printable-qr-labels,
+#printableQrLabels {
+  display: none !important;
+}
+
 @page {
   margin: 0;
   size: auto;
