@@ -51,8 +51,8 @@
                 <div class="metric-card" id="cardStudentDevices">
                   <div class="metric-ring" aria-hidden="true">
                     <svg viewBox="0 0 36 36">
-                      <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                      <path class="ring-fill" id="studentRingFill1" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831 Z" pathLength="100"/>
+                      <path class="ring-fill" id="studentRingFill1" stroke-dasharray="0 100" pathLength="100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831 Z"/>
                     </svg>
                     <span class="ring-value" id="studentRingValue1">0%</span>
                   </div>
@@ -65,8 +65,8 @@
                 <div class="metric-card" id="cardStudentMilestones">
                   <div class="metric-ring" aria-hidden="true">
                     <svg viewBox="0 0 36 36">
-                      <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-                      <path class="ring-fill" id="studentRingFill2" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                      <path class="ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831 Z" pathLength="100"/>
+                      <path class="ring-fill" id="studentRingFill2" stroke-dasharray="0 100" pathLength="100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831 Z"/>
                     </svg>
                     <span class="ring-value" id="studentRingValue2">0%</span>
                   </div>
@@ -82,22 +82,30 @@
                 <h4>Conquistas e Medalhas</h4>
                 <div class="milestone-grid">
                   <div class="badge-card is-locked" id="badgeBronze">
-                    <div class="badge-icon">🥉</div>
+                    <div class="badge-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+                    </div>
                     <strong>Bronze</strong>
                     <small>Primeiro Descarte (1kg+)</small>
                   </div>
                   <div class="badge-card is-locked" id="badgePrata">
-                    <div class="badge-icon">🥈</div>
+                    <div class="badge-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m13 10-2 4h3l-2 4 4-5h-3l2-3h-2z"/></svg>
+                    </div>
                     <strong>Prata</strong>
                     <small>Arrecadador (2.5kg+)</small>
                   </div>
                   <div class="badge-card is-locked" id="badgeOuro">
-                    <div class="badge-icon">🥇</div>
+                    <div class="badge-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17M14 14.66V17M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>
+                    </div>
                     <strong>Ouro</strong>
                     <small>Líder Verde (10kg+)</small>
                   </div>
                   <div class="badge-card is-locked" id="badgeEsmeralda">
-                    <div class="badge-icon">💎</div>
+                    <div class="badge-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M6 3h12l4 6-10 12L2 9z"/><path d="M11 3v18M2 9h20"/></svg>
+                    </div>
                     <strong>Esmeralda</strong>
                     <small>Campeão EcoTech (25kg+)</small>
                   </div>

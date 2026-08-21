@@ -421,9 +421,9 @@ const _renderStudentPortal = () => {
   const countPct = totalCampaignCount > 0 ? Math.min(100, Math.round((displayList.length / totalCampaignCount) * 100)) : 0
   const weightPct = totalCampaignWeight > 0 ? Math.min(100, Math.round((totalWeight / totalCampaignWeight) * 100)) : 0
 
-  if (fill1) fill1.setAttribute('stroke-dasharray', `${countPct}, 100`)
+  if (fill1) fill1.setAttribute('stroke-dasharray', `${countPct} 100`)
   if (val1) val1.textContent = `${countPct}%`
-  if (fill2) fill2.setAttribute('stroke-dasharray', `${weightPct}, 100`)
+  if (fill2) fill2.setAttribute('stroke-dasharray', `${weightPct} 100`)
   if (val2) val2.textContent = `${weightPct}%`
 
   /* Dynamic milestone badge unlock logic based on actual student contribution */
