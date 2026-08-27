@@ -1,0 +1,12 @@
+*
+
+!.gitignore
+!app.js
+!index.html
+!package.json
+!printer.js
+!README.md
+!server.js
+!styles.css
+!pages/
+!pages/*

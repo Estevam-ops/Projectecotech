@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sessão & Autenticação | EcoTech IFTM UPT</title>
+    <meta name="description" content="Acesse ou crie sua conta na plataforma EcoTech IFTM UPT." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="../styles.css" />
+    <script defer src="../app.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Pular para o conteúdo principal</a>
+
+    <nav class="nav" id="siteNav" aria-label="Navegação principal">
+      <div class="nav-container">
+        <a class="brand" href="main.html" aria-label="EcoTech - início"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.4 15.2 9M12 3.4 8.8 9"/><path d="M4.6 15.4 7.8 9.8"/><path d="M19.4 15.4 16.2 9.8"/><path d="M8.4 20.2h7.2"/><path d="m6.6 12.6-2.4 2.4 2.6 2.2"/><path d="m17.4 12.6 2.4 2.4-2.6 2.2"/></svg></span> EcoTech</a>
+        <div class="nav-actions">
+          <button
+            class="theme-toggle"
+            id="themeToggle"
+            type="button"
+            title="Alternar tema claro e escuro"
+            aria-label="Alternar tema claro e escuro">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.4 14.2A8.6 8.6 0 0 1 9.8 3.6a8.6 8.6 0 1 0 10.6 10.6Z"/></svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.4v2.4M12 19.2v2.4M21.6 12h-2.4M4.8 12H2.4M18.8 5.2l-1.7 1.7M6.9 17.1l-1.7 1.7M18.8 18.8l-1.7-1.7M6.9 6.9 5.2 5.2"/></svg>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <main id="main-content">
+      <section class="section app-section" id="sistema" aria-labelledby="sistema-title">
+        <div class="container">
+          <div class="section-heading" style="text-align: center;">
+            <span class="section-label">Portal de Acesso</span>
+            <h2 id="sistema-title" class="section-title">Inicie sua Sessão</h2>
+            <p class="section-subtitle" style="margin: 0 auto;">Acesse com suas credenciais ou crie um novo cadastro para gerenciar seus descartes eletrônicos.</p>
+          </div>
+
+          <!-- Auth Card (Login & Register Container) -->
+          <div class="auth-card" id="authCard" style="margin-top: 32px;">
+            <div class="auth-tabs">
+              <div class="auth-tab-indicator" id="authTabIndicator"></div>
+              <button class="auth-tab is-active" id="tabLogin" type="button">Entrar</button>
+              <button class="auth-tab" id="tabRegister" type="button">Cadastrar Conta</button>
+            </div>
+
+            <!-- Login View -->
+            <form class="login-fields" id="loginForm">
+              <label for="email">E-mail</label>
+              <input id="email" class="field-input" type="email" required placeholder="seu.email@escola.com" autocomplete="username" />
+
+              <label for="password">Senha</label>
+              <div class="input-password">
+                <input id="password" class="field-input" type="password" required placeholder="Digite sua senha" autocomplete="current-password" aria-describedby="loginMessage" />
+                <button class="password-toggle" id="passwordToggle" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                  <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/>
+                    <circle cx="12" cy="12" r="2.8"/>
+                  </svg>
+                  <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9.6 6.1A9.4 9.4 0 0 1 12 5.8c5.8 0 9.6 6.2 9.6 6.2a17 17 0 0 1-3 3.7"/>
+                    <path d="M6.4 7.9A17 17 0 0 0 2.4 12s3.8 6.2 9.6 6.2a9.3 9.3 0 0 0 3.4-.6"/>
+                    <path d="M10 10a2.8 2.8 0 0 0 4 4"/>
+                    <path d="m3.6 3.6 16.8 16.8"/>
+                  </svg>
+                </button>
+              </div>
+
+              <button class="button primary" type="submit">Entrar na Sessão</button>
+              <p class="auth-switch-text">Não possui conta? <button type="button" class="btn-link" id="switchToRegister">Cadastre-se aqui</button></p>
+              <p class="form-message" id="loginMessage" role="status"></p>
+            </form>
+
+            <!-- Registration View (hidden by default) -->
+            <form class="login-fields hidden" id="registerForm">
+              <label for="regFullName">Nome Completo</label>
+              <input id="regFullName" class="field-input" type="text" required placeholder="Digite seu nome completo" autocomplete="name" />
+
+              <label for="regEmail">E-mail</label>
+              <input id="regEmail" class="field-input" type="email" required placeholder="aluno@escola.com" autocomplete="username" />
+
+              <label for="regSchool">Escola parceira</label>
+              <input id="regSchool" class="field-input" required list="schoolOptions" placeholder="Selecione uma escola cadastrada..." autocomplete="off" />
+              <datalist id="schoolOptions"></datalist>
+
+              <label for="regPassword">Senha</label>
+              <div class="input-password">
+                <input id="regPassword" class="field-input" type="password" required placeholder="Crie uma senha segura" autocomplete="new-password" aria-describedby="registerMessage" />
+                <button class="password-toggle" id="regPasswordToggle" type="button" aria-label="Mostrar senha" aria-pressed="false" title="Mostrar senha">
+                  <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M2.4 12S6.2 5.6 12 5.6 21.6 12 21.6 12 17.8 18.4 12 18.4 2.4 12 2.4 12Z"/>
+                    <circle cx="12" cy="12" r="2.8"/>
+                  </svg>
+                  <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M9.6 6.1A9.4 9.4 0 0 1 12 5.8c5.8 0 9.6 6.2 9.6 6.2a17 17 0 0 1-3 3.7"/>
+                    <path d="M6.4 7.9A17 17 0 0 0 2.4 12s3.8 6.2 9.6 6.2a9.3 9.3 0 0 0 3.4-.6"/>
+                    <path d="M10 10a2.8 2.8 0 0 0 4 4"/>
+                    <path d="m3.6 3.6 16.8 16.8"/>
+                  </svg>
+                </button>
+              </div>
+
+              <button class="button primary" type="submit">Criar Conta</button>
+              <p class="auth-switch-text">Já possui conta? <button type="button" class="btn-link" id="switchToLogin">Faça login</button></p>
+              <p class="form-message" id="registerMessage" role="status"></p>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <footer>
+      <div class="container footer-container">
+        <strong>EcoTech IFTM UPT</strong>
+        <span>Projeto escolar de coleta, educação ambiental e inclusão de cooperativas.</span>
+        <a href="main.html" aria-label="Voltar ao início">← Voltar ao início</a>
+      </div>
+    </footer>
+  </body>
+</html>
