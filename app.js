@@ -12,7 +12,9 @@ const studentArea = $('#studentArea')
 const recordForm = $('#recordForm')
 const recordsTable = $('#recordsTable')
 const studentRecordsTable = $('#studentRecordsTable')
+const selectAllRecords = $('#selectAllRecords')
 
+let records = []
 let selectedItemIds = new Set()
 
 const _updateDeleteButtonState = () => {
@@ -43,26 +45,53 @@ const _updateDeleteButtonState = () => {
   }
 }
 
-const _setSelectedRow = (itemId) => {
-  if (selectedItemIds.has(itemId)) {
-    selectedItemIds.delete(itemId)
-  } else {
-    selectedItemIds.add(itemId)
-  }
+const _syncSelectionUI = () => {
+  const validIds = new Set(records.map((item) => String(item.id)).filter(Boolean))
+
+  selectedItemIds.forEach((id) => {
+    if (!validIds.has(id)) selectedItemIds.delete(id)
+  })
 
   if (recordsTable) {
     recordsTable.querySelectorAll('tr.selectable-row').forEach((row) => {
       const id = row.getAttribute('data-id')
+      const isSelected = selectedItemIds.has(id)
+      const checkbox = row.querySelector('.record-select')
 
-      if (selectedItemIds.has(id)) {
-        row.classList.add('is-selected')
-      } else {
-        row.classList.remove('is-selected')
-      }
+      row.classList.toggle('is-selected', isSelected)
+      if (checkbox) checkbox.checked = isSelected
     })
   }
 
+  if (selectAllRecords) {
+    const selectedCount = records.reduce((count, item) => count + (selectedItemIds.has(String(item.id)) ? 1 : 0), 0)
+
+    selectAllRecords.disabled = serverDown || records.length === 0
+    selectAllRecords.checked = records.length > 0 && selectedCount === records.length
+    selectAllRecords.indeterminate = selectedCount > 0 && selectedCount < records.length
+  }
+
   _updateDeleteButtonState()
+}
+
+const _setSelectedRow = (itemId, shouldSelect = null) => {
+  const normalizedId = String(itemId)
+  const willSelect = shouldSelect === null ? !selectedItemIds.has(normalizedId) : shouldSelect
+
+  if (willSelect) selectedItemIds.add(normalizedId)
+  else selectedItemIds.delete(normalizedId)
+
+  _syncSelectionUI()
+}
+
+if (selectAllRecords) {
+  selectAllRecords.addEventListener('change', () => {
+    selectedItemIds = selectAllRecords.checked
+      ? new Set(records.map((item) => String(item.id)).filter(Boolean))
+      : new Set()
+
+    _syncSelectionUI()
+  })
 }
 let registeredSchools = []
 let serverDown = false
@@ -199,13 +228,13 @@ const _deleteSchool = async (schoolObj, targetBtn) => {
     const data = await res.json().catch(() => ({}))
 
     if (res.ok) {
-      _showToast(data.message || `Escola "${name}" excluída com sucesso!`, 'success')
+      _showToast(data.message || `Organização "${name}" excluída com sucesso!`, 'success')
       await _fetchSchools()
 
       return;
     }
 
-    _showToast(data.error || 'Erro ao excluir escola.', 'error')
+    _showToast(data.error || 'Erro ao excluir organização.', 'error')
   } catch (err) {
     console.warn('Failed to delete school:', err)
 
@@ -213,14 +242,14 @@ const _deleteSchool = async (schoolObj, targetBtn) => {
     const isLinkedLocally = records.some((r) => r.school.toLowerCase() === name.toLowerCase())
 
     if (isLinkedLocally) {
-      _showToast(`Não é possível excluir a escola "${name}" pois existem dispositivos vinculados a ela.`, 'error')
+      _showToast(`Não é possível excluir a organização "${name}" pois existem dispositivos vinculados a ela.`, 'error')
 
       return;
     }
 
     registeredSchools = registeredSchools.filter((s) => (typeof s === 'string' ? s : s.name).toLowerCase() !== name.toLowerCase())
     _renderSchoolsUI()
-    _showToast(`Escola "${name}" removida localmente.`, 'warning')
+    _showToast(`Organização "${name}" removida localmente.`, 'warning')
   } finally {
     if (targetBtn) {
       targetBtn.disabled = false
@@ -251,7 +280,7 @@ const _renderSchoolsUI = () => {
     schoolsList.innerHTML = ''
 
     if (!registeredSchools.length) {
-      schoolsList.innerHTML = '<span style="font-size: var(--text-xs); color: var(--text-muted);">Nenhuma escola cadastrada.</span>'
+      schoolsList.innerHTML = '<span style="font-size: var(--text-xs); color: var(--text-muted);">Nenhuma organização cadastrada.</span>'
       return;
     }
 
@@ -315,11 +344,11 @@ const _fetchSchools = async () => {
 
 
 /* INFO: Single-pass stats calculator for total weight and school/student rankings */
-const _calcStats = () => {
+const _calcStats = (items = records) => {
   const totals = { school: new Map(), student: new Map() }
   let totalWeight = 0
 
-  records.forEach((item) => {
+  items.forEach((item) => {
     const weight = Number(item.weight || 0)
 
     totalWeight += weight
@@ -336,6 +365,17 @@ const _calcStats = () => {
     school: [...totals.school.entries()].sort((a, b) => b[1] - a[1]),
     student: [...totals.student.entries()].sort((a, b) => b[1] - a[1])
   }
+}
+
+
+const _getCurrentYearRecords = (items = records, year = new Date().getFullYear()) => {
+  return items.filter((item) => {
+    if (!item.createdAt) return false
+
+    const createdAt = new Date(item.createdAt)
+
+    return !Number.isNaN(createdAt.getTime()) && createdAt.getFullYear() === year
+  })
 }
 
 
@@ -385,7 +425,7 @@ const _renderStudentPortal = () => {
   const school = (currentUser && currentUser.school) || ''
 
   if ($('#studentWelcome')) $('#studentWelcome').textContent = `Bem-vindo(a), ${username}!`
-  if ($('#studentSub')) $('#studentSub').textContent = school ? `Escola parceira: ${school}` : ''
+  if ($('#studentSub')) $('#studentSub').textContent = school ? `Organização: ${school}` : ''
 
   const userFullName = (currentUser && currentUser.full_name ? currentUser.full_name : '').trim().toLowerCase()
   const userUsername = (currentUser && currentUser.username ? currentUser.username : '').trim().toLowerCase()
@@ -495,12 +535,21 @@ const _renderDeviceOptions = () => {
 
 /* INFO: Unified UI Renderer */
 const _render = () => {
+  const currentYear = new Date().getFullYear()
   const metricEls = {
     totalItems: $('#totalItems'),
     totalWeight: $('#totalWeight'),
     topSchool: $('#topSchool'),
     topStudent: $('#topStudent')
   }
+
+  document.querySelectorAll('[data-current-year]').forEach((element) => {
+    element.textContent = currentYear
+  })
+
+  const recordsColumnCount = recordsTable
+    ? recordsTable.closest('table')?.querySelectorAll('thead th').length || 7
+    : 7
 
   if (serverDown) {
     Object.values(metricEls).forEach((el) => {
@@ -513,20 +562,23 @@ const _render = () => {
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
-    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="${recordsColumnCount}" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+
+    _syncSelectionUI()
 
     return;
   }
 
-  const stats = _calcStats()
+  const allStats = _calcStats(records)
+  const currentStats = _calcStats(_getCurrentYearRecords(records, currentYear))
 
   if (metricEls.totalItems) metricEls.totalItems.textContent = records.length
-  if (metricEls.totalWeight) metricEls.totalWeight.textContent = `${stats.totalWeight.toFixed(2)} kg`
+  if (metricEls.totalWeight) metricEls.totalWeight.textContent = `${allStats.totalWeight.toFixed(2)} kg`
 
   if (metricEls.topSchool) {
-    if (stats.school[0]) {
-      const schoolName = stats.school[0][0]
-      const weightStr = `(${stats.school[0][1].toFixed(2)} kg)`
+    if (currentStats.school[0]) {
+      const schoolName = currentStats.school[0][0]
+      const weightStr = `(${currentStats.school[0][1].toFixed(2)} kg)`
       metricEls.topSchool.innerHTML = `<span class="metric-title-text">${_escapeHtml(schoolName)}</span> <span class="metric-weight-text">${weightStr}</span>`
       metricEls.topSchool.title = schoolName
     } else {
@@ -536,9 +588,9 @@ const _render = () => {
   }
 
   if (metricEls.topStudent) {
-    if (stats.student[0]) {
-      const studentName = stats.student[0][0]
-      const weightStr = `(${stats.student[0][1].toFixed(2)} kg)`
+    if (currentStats.student[0]) {
+      const studentName = currentStats.student[0][0]
+      const weightStr = `(${currentStats.student[0][1].toFixed(2)} kg)`
       metricEls.topStudent.innerHTML = `<span class="metric-title-text">${_escapeHtml(studentName)}</span> <span class="metric-weight-text">${weightStr}</span>`
       metricEls.topStudent.title = studentName
     } else {
@@ -548,8 +600,8 @@ const _render = () => {
   }
 
   const rankTargets = [
-    { target: $('#schoolRanking'), rows: stats.school },
-    { target: $('#studentRanking'), rows: stats.student }
+    { target: $('#schoolRanking'), rows: currentStats.school },
+    { target: $('#studentRanking'), rows: currentStats.student }
   ]
 
   rankTargets.forEach(({ target, rows }) => {
@@ -558,7 +610,7 @@ const _render = () => {
     target.innerHTML = ''
 
     if (!rows.length) {
-      target.innerHTML = '<li class="empty-state"><div class="empty-title">Nenhum registro ainda</div><p class="empty-text">Os dados serão exibidos assim que forem cadastrados.</p></li>'
+      target.innerHTML = `<li class="empty-state"><div class="empty-title">Nenhum registro em ${currentYear}</div><p class="empty-text">Os dados do ano atual aparecerão aqui assim que forem cadastrados.</p></li>`
 
       return;
     }
@@ -585,22 +637,27 @@ const _render = () => {
   if (recordsTable) recordsTable.innerHTML = ''
 
   if (recordsTable && !records.length) {
-    recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+    recordsTable.innerHTML = `<tr><td colspan="${recordsColumnCount}" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
   } else if (recordsTable) {
     records.forEach((item) => {
       const tr = document.createElement('tr')
       const statusClass = _getStatusClass(item.status)
-      const isSelected = selectedItemIds.has(item.id)
+      const itemId = String(item.id)
+      const isSelected = selectedItemIds.has(itemId)
+      const selectionCell = selectAllRecords
+        ? `<td data-label="Selecionar" class="selection-cell"><input class="record-select" type="checkbox" aria-label="Selecionar ${_escapeHtml(item.device || itemId)}" ${isSelected ? 'checked' : ''} /></td>`
+        : ''
 
       tr.className = `selectable-row ${isSelected ? 'is-selected' : ''}`
-      tr.setAttribute('data-id', item.id)
+      tr.setAttribute('data-id', itemId)
 
       tr.innerHTML = `
+        ${selectionCell}
         <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
         <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
         <td data-label="Escola">${_escapeHtml(item.school)}</td>
-        <td data-label="Aluno">${_escapeHtml(item.student)}</td>
+        <td data-label="Usuário">${_escapeHtml(item.student)}</td>
         <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
         <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
 
@@ -629,14 +686,23 @@ const _render = () => {
       recordsTable.addEventListener('click', (e) => {
         const tr = e.target.closest('tr.selectable-row')
 
-        if (tr && !e.target.closest('.qr-cell')) {
+        if (tr && !e.target.closest('.qr-cell') && !e.target.closest('.record-select')) {
           const itemId = tr.getAttribute('data-id')
 
           _setSelectedRow(itemId)
         }
       })
+
+      recordsTable.addEventListener('change', (e) => {
+        const checkbox = e.target.closest('.record-select')
+        const tr = checkbox?.closest('tr.selectable-row')
+
+        if (checkbox && tr) _setSelectedRow(tr.getAttribute('data-id'), checkbox.checked)
+      })
     }
   }
+
+  _syncSelectionUI()
 
   _renderStudentPortal()
   _renderDeviceOptions()
@@ -654,13 +720,13 @@ const _fetchRecords = async () => {
 
       if (Array.isArray(data.items)) {
         records = data.items.map((item) => ({
-          id: item.uuid || item.id,
+          id: String(item.uuid || item.id || ''),
           device: item.name || '',
           weight: Number(item.weight || 0),
           school: item.school || '',
           student: item.owner_name || item.ownerName || item.full_name || item.owner || '',
           status: item.state || 'Na escola',
-          createdAt: item.createdAt || item.created_at || new Date().toISOString()
+          createdAt: item.createdAt || item.created_at || null
         }))
       } else {
         records = []
@@ -764,7 +830,7 @@ if (schoolForm) {
     const exists = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === schoolName.toLowerCase())
 
     if (exists) {
-      _showToast('Esta escola já está cadastrada.', 'error')
+      _showToast('Esta organização já está cadastrada.', 'error')
 
       return;
     }
@@ -777,7 +843,7 @@ if (schoolForm) {
       })
 
       if (res.ok) {
-        _showToast('Escola cadastrada com sucesso!', 'success')
+        _showToast('Organização cadastrada com sucesso!', 'success')
         if (nameInput) nameInput.value = ''
         await _fetchSchools()
 
@@ -785,14 +851,14 @@ if (schoolForm) {
       }
 
       const errData = await res.json().catch(() => ({}))
-      _showToast(errData.error || 'Erro ao cadastrar escola.', 'error')
+      _showToast(errData.error || 'Erro ao cadastrar organização.', 'error')
     } catch (err) {
       console.warn('Failed to post new school:', err)
 
       registeredSchools.push({ id: Date.now(), name: schoolName })
       _renderSchoolsUI()
       if (nameInput) nameInput.value = ''
-      _showToast('Escola adicionada localmente!', 'warning')
+      _showToast('Organização adicionada localmente!', 'warning')
     }
   })
 }
@@ -839,7 +905,7 @@ if (registerForm) {
     if (!isSchoolValid) {
       if (schoolInput) {
         schoolInput.classList.add('is-invalid')
-        schoolInput.setCustomValidity('Escola não cadastrada. Selecione uma escola válida.')
+        schoolInput.setCustomValidity('Organização não cadastrada. Selecione uma organização válida.')
         schoolInput.reportValidity()
         schoolInput.addEventListener('input', () => {
           schoolInput.classList.remove('is-invalid')
@@ -847,7 +913,7 @@ if (registerForm) {
         }, { once: true })
       }
 
-      _showToast('A escola informada não está cadastrada no sistema. Selecione uma escola autorizada.', 'error')
+      _showToast('A organização informada não está cadastrada no sistema. Selecione uma organização autorizada.', 'error')
 
       return;
     }
@@ -1023,7 +1089,7 @@ if (recordForm) {
     if (!isSchoolValid) {
       if (schoolInput) {
         schoolInput.classList.add('is-invalid')
-        schoolInput.setCustomValidity('Escola não cadastrada. Selecione ou cadastre uma escola válida.')
+        schoolInput.setCustomValidity('Organização não cadastrada. Selecione ou cadastre uma organização válida.')
         schoolInput.reportValidity()
         schoolInput.addEventListener('input', () => {
           schoolInput.classList.remove('is-invalid')
@@ -1031,7 +1097,7 @@ if (recordForm) {
         }, { once: true })
       }
 
-      _showToast('A escola informada não está cadastrada. Cadastre a escola primeiro ou selecione uma existente.', 'error')
+      _showToast('A organização informada não está cadastrada. Cadastre a organização primeiro ou selecione uma existente.', 'error')
 
       return;
     }
@@ -1046,7 +1112,7 @@ if (recordForm) {
         if (!userCheckRes.ok) {
           if (studentInput) {
             studentInput.classList.add('is-invalid')
-            studentInput.setCustomValidity('Aluno/e-mail não possui cadastro no sistema.')
+            studentInput.setCustomValidity('Usuário/e-mail não possui cadastro no sistema.')
             studentInput.reportValidity()
             studentInput.addEventListener('input', () => {
               studentInput.classList.remove('is-invalid')
@@ -1054,7 +1120,7 @@ if (recordForm) {
             }, { once: true })
           }
 
-          _showToast(`Nenhum aluno cadastrado com o e-mail/usuário "${enteredStudent}". O aluno precisa ter uma conta criada no sistema.`, 'error')
+          _showToast(`Nenhum usuário cadastrado com o e-mail/usuário "${enteredStudent}". O usuário precisa ter uma conta criada no sistema.`, 'error')
 
           return;
         }
@@ -1273,7 +1339,7 @@ const _exportPdf = () => {
     ink(REPORT_COLORS.muted)
     doc.text('Nenhum aparelho cadastrado até o momento.', margin, y)
   } else {
-    const stats = _calcStats()
+    const stats = _calcStats(displayRecords)
 
     y = _sectionTitle('Resumo da campanha', y)
 
@@ -1518,6 +1584,7 @@ if ($('#deleteSelectedBtn')) {
 
     const idsToDelete = Array.from(selectedItemIds)
     const token = sessionStorage.getItem('authToken')
+    const deletedIds = new Set()
 
     for (const id of idsToDelete) {
       try {
@@ -1528,27 +1595,40 @@ if ($('#deleteSelectedBtn')) {
             ...(token ? { 'Authorization': `Bearer ${token}` } : {})
           }
         })
+        let wasDeleted = res.ok
 
-        if (!res.ok) {
-          await globalThis.fetch(`${SERVER_URL}/items/delete`, {
+        if (!wasDeleted) {
+          const fallbackRes = await globalThis.fetch(`${SERVER_URL}/items/delete`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               ...(token ? { 'Authorization': `Bearer ${token}` } : {})
             },
             body: JSON.stringify({ id })
-          }).catch(() => ({}))
+          })
+
+          wasDeleted = fallbackRes.ok
         }
+
+        if (wasDeleted) deletedIds.add(id)
       } catch (err) {
         console.warn('Error deleting item on server:', err)
       }
     }
 
-    records = records.filter((r) => !selectedItemIds.has(r.id))
-    selectedItemIds.clear()
-    _updateDeleteButtonState()
+    records = records.filter((record) => !deletedIds.has(String(record.id)))
+    selectedItemIds = new Set(idsToDelete.filter((id) => !deletedIds.has(id)))
     _render()
-    _showToast(`${count} dispositivo(s) excluído(s) com sucesso!`, 'success')
+
+    const failedCount = count - deletedIds.size
+
+    if (failedCount === 0) {
+      _showToast(`${count} dispositivo(s) excluído(s) com sucesso!`, 'success')
+    } else if (deletedIds.size > 0) {
+      _showToast(`${deletedIds.size} dispositivo(s) excluído(s). ${failedCount} não puderam ser excluídos.`, 'warning')
+    } else {
+      _showToast('Não foi possível excluir os dispositivos selecionados.', 'error')
+    }
   })
 }
 
@@ -1631,12 +1711,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const mapContainer = document.getElementById('map-container')
   const instructionsDiv = document.getElementById('route-instructions')
   const routeStatus = document.getElementById('route-status')
+  const googleMapsRouteBtn = document.getElementById('google-maps-route-btn')
 
   let markersLayer = null
   let originMarker = null
   let destMarker = null
   let routingControl = null
   let userCurrentCoords = null
+  let googleMapsRouteUrl = ''
+  let routeRequestId = 0
+
+  const _clearGoogleMapsRoute = () => {
+    googleMapsRouteUrl = ''
+
+    if (googleMapsRouteBtn) {
+      googleMapsRouteBtn.removeAttribute('href')
+      googleMapsRouteBtn.setAttribute('aria-disabled', 'true')
+      googleMapsRouteBtn.setAttribute('tabindex', '-1')
+    }
+  }
+
+  const _setGoogleMapsRoute = (origin, destination) => {
+    if (!googleMapsRouteBtn || !origin || !destination) return;
+
+    const originParam = encodeURIComponent(`${origin.lat},${origin.lng}`)
+    const destinationParam = encodeURIComponent(`${destination.lat},${destination.lng}`)
+
+    googleMapsRouteUrl = `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${destinationParam}&travelmode=driving`
+    googleMapsRouteBtn.setAttribute('href', googleMapsRouteUrl)
+    googleMapsRouteBtn.setAttribute('aria-disabled', 'false')
+    googleMapsRouteBtn.setAttribute('tabindex', '0')
+  }
+
+  _clearGoogleMapsRoute()
 
   if (!mapContainer) return;
 
@@ -1646,10 +1753,13 @@ document.addEventListener('DOMContentLoaded', () => {
     mapContainer.classList.add('map-unavailable')
     mapContainer.textContent = message
 
-    ;['gps-btn', 'calc-route-btn', 'filter-map-btn'].forEach((id) => {
+    ;['gps-btn', 'calc-route-btn', 'filter-map-btn', 'google-maps-route-btn'].forEach((id) => {
       const button = document.getElementById(id)
 
-      if (button) button.disabled = true
+      if (button) {
+        button.disabled = true
+        button.setAttribute('aria-disabled', 'true')
+      }
     })
 
     if (routeStatus) routeStatus.textContent = message
@@ -1665,6 +1775,31 @@ document.addEventListener('DOMContentLoaded', () => {
   }).addTo(map)
 
   markersLayer = L.layerGroup().addTo(map)
+
+  const _invalidateCalculatedRoute = () => {
+    routeRequestId += 1
+    _clearGoogleMapsRoute()
+
+    if (routingControl) {
+      map.removeControl(routingControl)
+      routingControl = null
+    }
+
+    if (originMarker) {
+      map.removeLayer(originMarker)
+      originMarker = null
+    }
+
+    if (destMarker) {
+      map.removeLayer(destMarker)
+      destMarker = null
+    }
+
+    if (instructionsDiv) instructionsDiv.replaceChildren()
+    if (routeStatus) routeStatus.textContent = ''
+
+    return routeRequestId
+  }
 
   const _pontosPorMaterial = (material = 'all') => {
     return material === 'all'
@@ -1727,9 +1862,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const gpsBtn = document.getElementById('gps-btn')
+  const originInput = document.getElementById('origin-input')
+  const destinationInput = document.getElementById('destination-input')
+  const materialFilter = document.getElementById('material-filter')
+
+  ;[originInput, destinationInput].forEach((input) => {
+    if (input) input.addEventListener('input', _invalidateCalculatedRoute)
+  })
+
+  if (materialFilter) materialFilter.addEventListener('change', _invalidateCalculatedRoute)
 
   if (gpsBtn) {
     gpsBtn.addEventListener('click', () => {
+      _invalidateCalculatedRoute()
+
       if (!navigator.geolocation) {
         alert('Seu navegador não suporta geolocalização.')
 
@@ -1762,10 +1908,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (calcRouteBtn) {
     calcRouteBtn.addEventListener('click', async () => {
-      const originText = document.getElementById('origin-input').value.trim()
-      const destText = document.getElementById('destination-input').value.trim()
-      const selectedMaterial = document.getElementById('material-filter').value
+      const originText = originInput.value.trim()
+      const destText = destinationInput.value.trim()
+      const selectedMaterial = materialFilter.value
       const eligiblePoints = _pontosPorMaterial(selectedMaterial)
+      const requestId = _invalidateCalculatedRoute()
 
       if (!eligiblePoints.length) {
         alert('Nenhum ponto de coleta aceita o material selecionado.')
@@ -1774,6 +1921,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       calcRouteBtn.classList.add('is-loading')
+      calcRouteBtn.disabled = true
 
       let originCoords = null
       let destCoords = null
@@ -1788,6 +1936,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
           return;
         }
+
+        if (requestId !== routeRequestId) return;
 
         if (!originCoords) {
           alert('Endereço de origem não encontrado em Uberaba.')
@@ -1832,11 +1982,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
 
+        if (requestId !== routeRequestId) return;
+
         if (!destCoords) {
           alert('Endereço de destino não localizado.')
 
           return;
         }
+
+        _setGoogleMapsRoute(originCoords, destCoords)
 
         if (originMarker) map.removeLayer(originMarker)
         if (destMarker) map.removeLayer(destMarker)
@@ -1888,6 +2042,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
 
         routingControl.on('routesfound', (e) => {
+          if (requestId !== routeRequestId) return;
+
           const routes = e.routes
           if (routes && routes.length > 0 && instructionsDiv) {
             const summary = routes[0].summary
@@ -1909,6 +2065,8 @@ document.addEventListener('DOMContentLoaded', () => {
         })
 
         routingControl.on('routingerror', () => {
+          if (requestId !== routeRequestId) return;
+
           if (routeStatus) routeStatus.textContent = 'Não foi possível calcular a rota solicitada. Tente outro endereço.'
           _showToast('Não foi possível calcular a rota.', 'error')
         })
@@ -1916,6 +2074,7 @@ document.addEventListener('DOMContentLoaded', () => {
         routingControl.addTo(map)
       } finally {
         calcRouteBtn.classList.remove('is-loading')
+        calcRouteBtn.disabled = false
       }
     })
   }

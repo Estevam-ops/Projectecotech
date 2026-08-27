@@ -1141,6 +1141,7 @@ body {
 
 .map-actions-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1148,6 +1149,17 @@ body {
   min-height: 38px;
   padding: 6px 14px;
   font-size: var(--text-xs);
+}
+
+#google-maps-route-btn {
+  flex: 1 1 100%;
+}
+
+#google-maps-route-btn[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+  transform: none;
 }
 
 .map-canvas {
@@ -1310,6 +1322,16 @@ body {
   }
 }
 
+.metric-grid.metric-grid-two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 640px) {
+  .metric-grid.metric-grid-two {
+    grid-template-columns: 1fr;
+  }
+}
+
 .metric-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -1456,6 +1478,26 @@ body {
 
 .ranking-panel.is-updating {
   opacity: 0.6;
+}
+
+.ranking-totals {
+  margin-top: clamp(1.5rem, 3vw, 2.25rem);
+  padding-top: clamp(1.25rem, 2.5vw, 1.75rem);
+  border-top: 1px solid var(--border);
+}
+
+.ranking-totals-heading {
+  margin-bottom: 16px;
+}
+
+.ranking-totals-heading h3 {
+  margin: 4px 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+
+.ranking-total-grid {
+  margin-bottom: 0;
 }
 
 .rank-list {
@@ -1895,6 +1937,44 @@ body {
 }
 
 /* Selectable & Selected Table Rows */
+.select-all-control {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.select-all-control input,
+.record-select {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--accent-green);
+  cursor: pointer;
+}
+
+.select-all-control input:disabled,
+.select-all-control input:disabled + span {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.selection-column,
+.selection-cell {
+  width: 52px;
+  padding-left: 14px;
+  padding-right: 14px;
+  text-align: center;
+}
+
 .table-wrap tbody tr.selectable-row {
   cursor: pointer;
   transition: background-color var(--duration-fast) ease, outline var(--duration-fast) ease;
