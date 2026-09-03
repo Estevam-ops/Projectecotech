@@ -266,7 +266,7 @@ const _handleCheckUser = (req, res, reqUrl) => {
   if (user) {
     _sendJson(res, 200, { exists: true, username: user.username, full_name: user.full_name || user.username, organization: user.organization, grade: user.grade })
   } else {
-    _sendJson(res, 404, { exists: false, error: `Nenhum aluno cadastrado com o e-mail/usuário "${queryUser}".` })
+    _sendJson(res, 404, { exists: false, error: `Nenhum usuário cadastrado com o e-mail/usuário "${queryUser}".` })
   }
 }
 
@@ -368,7 +368,7 @@ const _handleAddItem = async (req, res) => {
   }
 
   const name = body.name
-  const owner = body.owner || (user ? user.username : 'Aluno')
+  const owner = body.owner || (user ? user.username : 'Usuário')
   const weight = body.weight !== undefined ? Number(body.weight) : 0
   const state = body.state || 'Na organização'
   const organization = body.organization || (user ? user.organization : '')
@@ -380,12 +380,12 @@ const _handleAddItem = async (req, res) => {
   }
 
   /* INFO: Verify server-side that the specified student/owner is actually registered in database */
-  if (owner && owner !== 'Aluno') {
+  if (owner && owner !== 'Usuário') {
     const registeredUser = db.prepare('SELECT id, username FROM users WHERE LOWER(username) = LOWER(?)').get(owner.trim())
 
     if (!registeredUser) {
       _sendJson(res, 404, {
-        error: `O aluno/e-mail "${owner}" não possui cadastro no sistema. Cadastre a conta do aluno primeiro.`
+        error: `O usuário/e-mail "${owner}" não possui cadastro no sistema. Cadastre a conta do usuário primeiro.`
       })
 
       return;
