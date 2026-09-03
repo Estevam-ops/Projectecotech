@@ -20,6 +20,10 @@ const _updateDeleteButtonState = () => {
   const printBtn = $('#printLabels')
   const bulkStatusBtn = $('#bulkStatusBtn')
   const bulkStatusSelect = $('#bulkStatusSelect')
+  const selectAllBtn = $('#selectAllBtn')
+  const selectAllSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`
+  const deselectAllSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`
+  const partialSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="12" x2="16" y2="12"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`
   const trashSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
 
   const count = selectedItemIds.size
@@ -42,6 +46,18 @@ const _updateDeleteButtonState = () => {
     const iconSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`
 
     printBtn.innerHTML = count > 1 ? `${iconSvg}<span>(${count})</span>` : iconSvg
+  }
+
+  const allRecords = (typeof records === 'undefined' || !Array.isArray(records)) ? [] : records
+  const allSelected = allRecords.length > 0 && count === allRecords.length
+
+  if (selectAllBtn) {
+    selectAllBtn.disabled = allRecords.length === 0
+    selectAllBtn.style.opacity = allRecords.length === 0 ? '0.5' : '1'
+    selectAllBtn.style.cursor = allRecords.length === 0 ? 'not-allowed' : 'pointer'
+    selectAllBtn.innerHTML = allSelected ? deselectAllSvg : (count > 0 ? partialSvg : selectAllSvg)
+    selectAllBtn.setAttribute('aria-label', allSelected ? 'Desmarcar todos' : 'Selecionar todos')
+    selectAllBtn.setAttribute('title', allSelected ? 'Desmarcar todos' : 'Selecionar todos')
   }
 
   const bulkActive = count > 0
@@ -1534,6 +1550,19 @@ const _printQrLabels = () => {
   window.print()
 }
 
+const _toggleSelectAll = () => {
+  const allRecords = (typeof records === 'undefined' || !Array.isArray(records)) ? [] : records
+
+  if (allRecords.length > 0 && selectedItemIds.size === allRecords.length) {
+    selectedItemIds.clear()
+  } else {
+    allRecords.forEach((r) => selectedItemIds.add(r.id))
+  }
+
+  _render()
+  _updateDeleteButtonState()
+}
+
 /* INFO: Single & bulk product status updates (admin only) */
 const _setItemStatus = async (id, state, selectEl) => {
   if (selectEl) selectEl.disabled = true
@@ -1702,6 +1731,7 @@ if (bulkStatusSelect) {
 }
 
 if ($('#bulkStatusBtn')) $('#bulkStatusBtn').addEventListener('click', _applyBulkStatus)
+if ($('#selectAllBtn')) $('#selectAllBtn').addEventListener('click', _toggleSelectAll)
 
 
 /* INFO: INTERACTIVE MAP & COLLECTION POINTS */
