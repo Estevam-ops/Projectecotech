@@ -1046,7 +1046,7 @@ if (recordForm) {
         if (!userCheckRes.ok) {
           if (studentInput) {
             studentInput.classList.add('is-invalid')
-            studentInput.setCustomValidity('Aluno/e-mail não possui cadastro no sistema.')
+            studentInput.setCustomValidity('Usuário/e-mail não possui cadastro no sistema.')
             studentInput.reportValidity()
             studentInput.addEventListener('input', () => {
               studentInput.classList.remove('is-invalid')
@@ -1054,7 +1054,7 @@ if (recordForm) {
             }, { once: true })
           }
 
-          _showToast(`Nenhum aluno cadastrado com o e-mail/usuário "${enteredStudent}". O aluno precisa ter uma conta criada no sistema.`, 'error')
+          _showToast(`Nenhum usuário cadastrado com o e-mail/usuário "${enteredStudent}". O usuário precisa ter uma conta criada no sistema.`, 'error')
 
           return;
         }
