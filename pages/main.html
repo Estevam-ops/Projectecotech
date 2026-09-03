@@ -234,6 +234,7 @@
             <div class="map-actions-row">
               <button class="button primary" id="calc-route-btn" type="button" style="flex: 1;">Calcular Rota</button>
               <button class="button secondary" id="filter-map-btn" type="button">Filtrar Mapa</button>
+              <a class="button secondary" id="google-maps-route-btn" aria-disabled="true" tabindex="-1" target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a>
             </div>
 
             <p id="route-status" class="visually-hidden" role="status" aria-live="polite"></p>
@@ -275,38 +276,18 @@
             <span class="section-label">Engajamento & Premiação</span>
             <h2 id="ranking-title" class="section-title">Resultados da campanha em tempo real</h2>
             <p class="section-subtitle">
-              Métricas consolidadas com o peso total arrecadado e os líderes de engajamento por organização e aluno.
+              Os rankings mostram somente os registros do ano atual. Os totais gerais da campanha aparecem logo abaixo.
             </p>
           </div>
 
-          <div class="metric-grid">
-            <div class="metric-card">
-              <div class="metric-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
-              </div>
-              <div class="metric-body">
-                <span class="metric-value" id="totalItems">0</span>
-                <span class="metric-label">Aparelhos Cadastrados</span>
-              </div>
-            </div>
-
-            <div class="metric-card">
-              <div class="metric-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              </div>
-              <div class="metric-body">
-                <span class="metric-value" id="totalWeight">0,00 kg</span>
-                <span class="metric-label">Peso Total Arrecadado</span>
-              </div>
-            </div>
-
+          <div class="metric-grid metric-grid-two ranking-leaders">
             <div class="metric-card">
               <div class="metric-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 3 6 6 1-4.5 4.5 1 6.5-5.5-3-5.5 3 1-6.5L3 10l6-1z"/></svg>
               </div>
               <div class="metric-body">
                 <span class="metric-value" id="topOrganization">-</span>
-                <span class="metric-label">Organização Líder</span>
+                <span class="metric-label">Organização Líder em <span data-current-year></span></span>
               </div>
             </div>
 
@@ -316,20 +297,48 @@
               </div>
               <div class="metric-body">
                 <span class="metric-value" id="topStudent">-</span>
-                <span class="metric-label">Aluno Destaque</span>
+                <span class="metric-label">Aluno Destaque em <span data-current-year></span></span>
               </div>
             </div>
           </div>
 
           <div class="ranking-grid">
             <div class="panel ranking-panel">
-              <h3>Top Organizações</h3>
+              <h3>Top Organizações — <span data-current-year></span></h3>
               <ol class="rank-list" id="organizationRanking"></ol>
             </div>
 
             <div class="panel ranking-panel">
-              <h3>Top Alunos</h3>
+              <h3>Top Alunos — <span data-current-year></span></h3>
               <ol class="rank-list" id="studentRanking"></ol>
+            </div>
+          </div>
+
+          <div class="ranking-totals" aria-label="Totais gerais da campanha">
+            <div class="ranking-totals-heading">
+              <span class="section-label">Histórico completo</span>
+              <h3>Totais gerais da campanha</h3>
+            </div>
+            <div class="metric-grid metric-grid-two ranking-total-grid">
+              <div class="metric-card">
+                <div class="metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <div class="metric-body">
+                  <span class="metric-value" id="totalWeight">0,00 kg</span>
+                  <span class="metric-label">Peso Total Arrecadado</span>
+                </div>
+              </div>
+
+              <div class="metric-card">
+                <div class="metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                </div>
+                <div class="metric-body">
+                  <span class="metric-value" id="totalItems">0</span>
+                  <span class="metric-label">Quantidade Total de Aparelhos</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

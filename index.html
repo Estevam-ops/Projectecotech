@@ -227,6 +227,7 @@
               <div class="map-actions-row">
                 <button class="button primary" id="calc-route-btn" type="button">Calcular rota</button>
                 <button class="button secondary" id="filter-map-btn" type="button">Filtrar</button>
+                <a class="button secondary" id="google-maps-route-btn" aria-disabled="true" tabindex="-1" target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a>
               </div>
             </div>
 
@@ -260,34 +261,16 @@
           <div class="section-heading">
             <span class="section-label">Resultados públicos</span>
             <h2 id="ranking-title" class="section-title">Ranking da campanha</h2>
-            <p class="section-subtitle">Os dados abaixo são atualizados conforme os registros feitos na área do projeto.</p>
+            <p class="section-subtitle">Os rankings mostram somente os registros do ano atual. Os totais gerais da campanha aparecem logo abaixo.</p>
           </div>
-          <div class="metric-grid">
-            <div class="metric-card">
-              <div class="metric-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="4.8" width="15.6" height="10.4" rx="1.6"/><path d="M2.4 18.6h19.2"/></svg>
-              </div>
-              <div class="metric-body">
-                <span class="metric-value" id="totalItems">0</span>
-                <span class="metric-label">Aparelhos cadastrados</span>
-              </div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20.4 3.4v3.9h-3.9"/><path d="M12 8.4 15.6 12 12 15.6"/></svg>
-              </div>
-              <div class="metric-body">
-                <span class="metric-value" id="totalWeight">0 kg</span>
-                <span class="metric-label">Peso total arrecadado</span>
-              </div>
-            </div>
+          <div class="metric-grid metric-grid-two ranking-leaders">
             <div class="metric-card">
               <div class="metric-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 6 3 6 3s6-1 6-3v-5"/></svg>
               </div>
               <div class="metric-body">
                 <span class="metric-value" id="topOrganization">-</span>
-                <span class="metric-label">Organização destaque</span>
+                <span class="metric-label">Organização destaque em <span data-current-year></span></span>
               </div>
             </div>
             <div class="metric-card">
@@ -296,13 +279,39 @@
               </div>
               <div class="metric-body">
                 <span class="metric-value" id="topStudent">-</span>
-                <span class="metric-label">Aluno destaque</span>
+                <span class="metric-label">Aluno destaque em <span data-current-year></span></span>
               </div>
             </div>
           </div>
           <div class="ranking-grid">
-            <div class="panel"><h3 id="organization-ranking-title">Organizações</h3><ol id="organizationRanking" class="rank-list" aria-labelledby="organization-ranking-title"></ol></div>
-            <div class="panel"><h3 id="student-ranking-title">Alunos</h3><ol id="studentRanking" class="rank-list" aria-labelledby="student-ranking-title"></ol></div>
+            <div class="panel"><h3 id="organization-ranking-title">Top Organizações — <span data-current-year></span></h3><ol id="organizationRanking" class="rank-list" aria-labelledby="organization-ranking-title"></ol></div>
+            <div class="panel"><h3 id="student-ranking-title">Top Alunos — <span data-current-year></span></h3><ol id="studentRanking" class="rank-list" aria-labelledby="student-ranking-title"></ol></div>
+          </div>
+          <div class="ranking-totals" aria-label="Totais gerais da campanha">
+            <div class="ranking-totals-heading">
+              <span class="section-label">Histórico completo</span>
+              <h3>Totais gerais da campanha</h3>
+            </div>
+            <div class="metric-grid metric-grid-two ranking-total-grid">
+              <div class="metric-card">
+                <div class="metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.2 12a8.2 8.2 0 1 1-2.4-5.8"/><path d="M20.4 3.4v3.9h-3.9"/><path d="M12 8.4 15.6 12 12 15.6"/></svg>
+                </div>
+                <div class="metric-body">
+                  <span class="metric-value" id="totalWeight">0 kg</span>
+                  <span class="metric-label">Peso total arrecadado</span>
+                </div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.2" y="4.8" width="15.6" height="10.4" rx="1.6"/><path d="M2.4 18.6h19.2"/></svg>
+                </div>
+                <div class="metric-body">
+                  <span class="metric-value" id="totalItems">0</span>
+                  <span class="metric-label">Quantidade total de aparelhos</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -324,7 +333,7 @@
             </p>
           </div>
           <ol class="steps">
-            <li><strong>Cadastro:</strong> preencha aparelho, peso, organização, aluno e status.</li>
+            <li><strong>Cadastro:</strong> preencha aparelho, peso, organização, usuário e status.</li>
             <li><strong>ID único:</strong> o sistema gera uma identificação exclusiva para evitar mistura de registros.</li>
             <li><strong>Etiqueta:</strong> o ID vira QR Code e pode ser impresso para colar no aparelho ou caixa.</li>
             <li><strong>Conferência:</strong> ao escanear, a equipe lê o ID e encontra o item no monitoramento.</li>
@@ -531,7 +540,7 @@
                   <table>
                     <caption class="visually-hidden">Registros de aparelhos cadastrados na campanha</caption>
                     <thead>
-                      <tr><th scope="col">ID</th><th scope="col">Aparelho</th><th scope="col">Peso</th><th scope="col">Organização</th><th scope="col">Sala</th><th scope="col">Aluno</th><th scope="col">Status</th><th scope="col">QR</th></tr>
+                      <tr><th scope="col">ID</th><th scope="col">Aparelho</th><th scope="col">Peso</th><th scope="col">Organização</th><th scope="col">Sala</th><th scope="col">Usuário</th><th scope="col">Status</th><th scope="col">QR</th></tr>
                     </thead>
                     <tbody id="recordsTable"></tbody>
                   </table>

@@ -78,7 +78,7 @@
               </div>
               <div class="metric-body">
                 <div class="metric-value" id="topOrganization">-</div>
-                <span class="metric-label">Organização com Maior Coleta</span>
+                <span class="metric-label">Organização com Maior Coleta em <span data-current-year></span></span>
               </div>
             </div>
 
@@ -88,7 +88,7 @@
               </div>
               <div class="metric-body">
                 <div class="metric-value" id="topStudent">-</div>
-                <span class="metric-label">Aluno Destaque</span>
+                <span class="metric-label">Aluno Destaque em <span data-current-year></span></span>
               </div>
             </div>
           </div>
@@ -115,7 +115,7 @@
                     <datalist id="organizationOptions"></datalist>
 
                     <label for="student">Usuário</label>
-                    <input id="student" class="field-input" required placeholder="e-mail do aluno" />
+                    <input id="student" class="field-input" required placeholder="E-mail do usuário" />
 
                     <label for="status">Status do descarte</label>
                     <select id="status" class="field-input">
@@ -149,6 +149,10 @@
               <main class="admin-main">
                 <!-- Action Controls Toolbar -->
                 <div class="actions-row" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+                  <label class="select-all-control" for="selectAllRecords">
+                    <input id="selectAllRecords" type="checkbox" disabled />
+                    <span>Selecionar todos</span>
+                  </label>
                   <button class="button secondary" id="printLabels" type="button">
                     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
                     Imprimir Etiquetas QR
@@ -166,11 +170,12 @@
                     <caption class="visually-hidden">Registros de aparelhos eletrônicos descartados</caption>
                     <thead>
                       <tr>
+                        <th class="selection-column" scope="col"><span class="visually-hidden">Selecionar registro</span></th>
                         <th scope="col">ID</th>
                         <th scope="col">Aparelho</th>
                         <th scope="col">Peso</th>
                         <th scope="col">Organização</th>
-                        <th scope="col">Aluno</th>
+                        <th scope="col">Usuário</th>
                         <th scope="col">Status</th>
                         <th scope="col" style="text-align: center;">QR Code</th>
                       </tr>
