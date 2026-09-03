@@ -17,7 +17,7 @@ db.exec(`
     salt TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     admin INTEGER NOT NULL DEFAULT 0,
-    school TEXT NOT NULL DEFAULT '',
+    organization TEXT NOT NULL DEFAULT '',
     grade TEXT NOT NULL DEFAULT ''
   );
 `)
@@ -29,7 +29,7 @@ try {
 }
 
 try {
-  db.exec(`ALTER TABLE users ADD COLUMN school TEXT NOT NULL DEFAULT '';`)
+  db.exec(`ALTER TABLE users ADD COLUMN organization TEXT NOT NULL DEFAULT '';`)
 } catch {
   /* Column already exists */
 }

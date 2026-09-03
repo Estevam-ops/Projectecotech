@@ -22,7 +22,7 @@ db.exec(`
     salt TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user',
     admin INTEGER NOT NULL DEFAULT 0,
-    school TEXT NOT NULL DEFAULT '',
+    organization TEXT NOT NULL DEFAULT '',
     grade TEXT NOT NULL DEFAULT ''
   );
 
@@ -39,12 +39,12 @@ db.exec(`
     owner TEXT NOT NULL DEFAULT '',
     weight REAL NOT NULL DEFAULT 0,
     state TEXT NOT NULL DEFAULT '',
-    school TEXT NOT NULL DEFAULT '',
+    organization TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS schools (
+  CREATE TABLE IF NOT EXISTS organizations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT UNIQUE NOT NULL,
     city TEXT NOT NULL DEFAULT 'Uberaba',
@@ -59,7 +59,7 @@ try {
 }
 
 try {
-  db.exec(`ALTER TABLE users ADD COLUMN school TEXT NOT NULL DEFAULT '';`)
+  db.exec(`ALTER TABLE users ADD COLUMN organization TEXT NOT NULL DEFAULT '';`)
 } catch {
   /* INFO: Column already exists. */
 }
@@ -119,7 +119,7 @@ const _getUserFromReq = (req) => {
   if (parts.length !== 2 || parts[0] !== 'Bearer') return null
 
   const token = parts[1]
-  const stmt = db.prepare('SELECT users.id, users.username, users.full_name, users.role, users.admin, users.school, users.grade FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = ?')
+  const stmt = db.prepare('SELECT users.id, users.username, users.full_name, users.role, users.admin, users.organization, users.grade FROM sessions JOIN users ON sessions.user_id = users.id WHERE sessions.token = ?')
   const user = stmt.get(token)
 
   return user || null
@@ -136,7 +136,7 @@ const _handleRegister = async (req, res) => {
   const fullName = (body.full_name || body.fullName || body.nome || '').trim()
   const username = body.username || body.email
   const password = body.password
-  const school = body.school || ''
+  const organization = body.organization || ''
   const grade = body.grade || body.classroom || ''
   const isAdmin = body.admin === true || body.admin === 1 || body.role === 'admin'
   const role = isAdmin ? 'admin' : 'user'
@@ -164,14 +164,14 @@ const _handleRegister = async (req, res) => {
   const salt = crypto.randomBytes(16).toString('hex')
   const passwordHash = _hashPassword(password, salt)
 
-  db.prepare('INSERT INTO users (username, full_name, password_hash, salt, role, admin, school, grade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+  db.prepare('INSERT INTO users (username, full_name, password_hash, salt, role, admin, organization, grade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
     username,
     fullName,
     passwordHash,
     salt,
     role,
     adminFlag,
-    school,
+    organization,
     grade
   )
 
@@ -181,7 +181,7 @@ const _handleRegister = async (req, res) => {
     full_name: fullName,
     role,
     admin: Boolean(adminFlag),
-    school,
+    organization,
     grade
   })
 }
@@ -203,7 +203,7 @@ const _handleLogin = async (req, res) => {
     return;
   }
 
-  const user = db.prepare('SELECT id, username, full_name, password_hash, salt, role, admin, school, grade FROM users WHERE username = ?').get(username)
+  const user = db.prepare('SELECT id, username, full_name, password_hash, salt, role, admin, organization, grade FROM users WHERE username = ?').get(username)
   if (!user) {
     _sendJson(res, 401, { error: 'Credenciais inválidas.' })
 
@@ -231,7 +231,7 @@ const _handleLogin = async (req, res) => {
       full_name: user.full_name || user.username,
       role: user.role,
       admin: Boolean(user.admin),
-      school: user.school || '',
+      organization: user.organization || '',
       grade: user.grade || ''
     }
   })
@@ -239,7 +239,7 @@ const _handleLogin = async (req, res) => {
 
 const _handleGetItems = (req, res) => {
   const items = db.prepare(`
-    SELECT items.uuid, items.name, items.owner, items.weight, items.state, items.school, items.created_at AS createdAt,
+    SELECT items.uuid, items.name, items.owner, items.weight, items.state, items.organization, items.created_at AS createdAt,
            COALESCE(NULLIF(users.full_name, ''), items.owner) AS owner_name
     FROM items
     LEFT JOIN users ON LOWER(items.owner) = LOWER(users.username) OR LOWER(items.owner) = LOWER(users.full_name)
@@ -247,9 +247,9 @@ const _handleGetItems = (req, res) => {
   _sendJson(res, 200, { items })
 }
 
-const _handleGetSchools = (req, res) => {
-  const schools = db.prepare('SELECT id, name, city, created_at AS createdAt FROM schools ORDER BY name ASC').all()
-  _sendJson(res, 200, { schools })
+const _handleGetOrganizations = (req, res) => {
+  const organizations = db.prepare('SELECT id, name, city, created_at AS createdAt FROM organizations ORDER BY name ASC').all()
+  _sendJson(res, 200, { organizations })
 }
 
 const _handleCheckUser = (req, res, reqUrl) => {
@@ -261,16 +261,16 @@ const _handleCheckUser = (req, res, reqUrl) => {
     return;
   }
 
-  const user = db.prepare('SELECT id, username, full_name, school, grade FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(full_name) = LOWER(?)').get(queryUser.trim(), queryUser.trim())
+  const user = db.prepare('SELECT id, username, full_name, organization, grade FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(full_name) = LOWER(?)').get(queryUser.trim(), queryUser.trim())
 
   if (user) {
-    _sendJson(res, 200, { exists: true, username: user.username, full_name: user.full_name || user.username, school: user.school, grade: user.grade })
+    _sendJson(res, 200, { exists: true, username: user.username, full_name: user.full_name || user.username, organization: user.organization, grade: user.grade })
   } else {
     _sendJson(res, 404, { exists: false, error: `Nenhum aluno cadastrado com o e-mail/usuário "${queryUser}".` })
   }
 }
 
-const _handleRegisterSchool = async (req, res) => {
+const _handleRegisterOrganization = async (req, res) => {
   const body = await _parseJsonBody(req)
 
   if (!body) {
@@ -283,15 +283,15 @@ const _handleRegisterSchool = async (req, res) => {
   const city = (body.city || 'Uberaba').trim()
 
   if (!name) {
-    _sendJson(res, 400, { error: 'Nome da escola é obrigatório.' })
+    _sendJson(res, 400, { error: 'Nome da organização é obrigatório.' })
 
     return;
   }
 
-  const existing = db.prepare('SELECT id FROM schools WHERE LOWER(name) = LOWER(?)').get(name)
+  const existing = db.prepare('SELECT id FROM organizations WHERE LOWER(name) = LOWER(?)').get(name)
 
   if (existing) {
-    _sendJson(res, 409, { error: 'Esta escola já está cadastrada.' })
+    _sendJson(res, 409, { error: 'Esta organização já está cadastrada.' })
 
     return;
   }
@@ -299,7 +299,7 @@ const _handleRegisterSchool = async (req, res) => {
   const createdAt = new Date().toISOString()
 
   try {
-    const result = db.prepare('INSERT INTO schools (name, city, created_at) VALUES (?, ?, ?)').run(name, city, createdAt)
+    const result = db.prepare('INSERT INTO organizations (name, city, created_at) VALUES (?, ?, ?)').run(name, city, createdAt)
 
     _sendJson(res, 201, {
       id: Number(result.lastInsertRowid),
@@ -308,52 +308,52 @@ const _handleRegisterSchool = async (req, res) => {
       createdAt
     })
   } catch (err) {
-    console.error('Error inserting school:', err.message)
-    _sendJson(res, 500, { error: 'Erro ao cadastrar escola.' })
+    console.error('Error inserting organization:', err.message)
+    _sendJson(res, 500, { error: 'Erro ao cadastrar organização.' })
   }
 }
 
-const _handleDeleteSchool = async (req, res, targetIdStr) => {
+const _handleDeleteOrganization = async (req, res, targetIdStr) => {
   let body = {}
 
   if (req.method === 'DELETE' || req.method === 'POST') {
     body = (await _parseJsonBody(req)) || {}
   }
 
-  const schoolId = targetIdStr || body.id
-  const schoolName = body.name
+  const organizationId = targetIdStr || body.id
+  const organizationName = body.name
 
-  let school = null
+  let organization = null
 
-  if (schoolId) {
-    school = db.prepare('SELECT id, name FROM schools WHERE id = ?').get(schoolId)
-  } else if (schoolName) {
-    school = db.prepare('SELECT id, name FROM schools WHERE LOWER(name) = LOWER(?)').get(schoolName.trim())
+  if (organizationId) {
+    organization = db.prepare('SELECT id, name FROM organizations WHERE id = ?').get(organizationId)
+  } else if (organizationName) {
+    organization = db.prepare('SELECT id, name FROM organizations WHERE LOWER(name) = LOWER(?)').get(organizationName.trim())
   }
 
-  if (!school) {
-    _sendJson(res, 404, { error: 'Escola não encontrada.' })
+  if (!organization) {
+    _sendJson(res, 404, { error: 'Organização não encontrada.' })
 
     return;
   }
 
-  /* INFO: Check server-side if any items in database are connected to this school */
-  const linkedItems = db.prepare('SELECT COUNT(*) as count FROM items WHERE LOWER(school) = LOWER(?)').get(school.name)
+  /* INFO: Check server-side if any items in database are connected to this organization */
+  const linkedItems = db.prepare('SELECT COUNT(*) as count FROM items WHERE LOWER(organization) = LOWER(?)').get(organization.name)
   const count = linkedItems ? linkedItems.count : 0
 
   if (count > 0) {
     _sendJson(res, 409, {
-      error: `Não é possível excluir a escola "${school.name}" pois existem ${count} dispositivo(s) vinculado(s) a ela.`
+      error: `Não é possível excluir a organização "${organization.name}" pois existem ${count} dispositivo(s) vinculado(s) a ela.`
     })
 
     return;
   }
 
-  db.prepare('DELETE FROM schools WHERE id = ?').run(school.id)
+  db.prepare('DELETE FROM organizations WHERE id = ?').run(organization.id)
 
   _sendJson(res, 200, {
-    message: `Escola "${school.name}" excluída com sucesso!`,
-    id: school.id
+    message: `Organização "${organization.name}" excluída com sucesso!`,
+    id: organization.id
   })
 }
 
@@ -370,8 +370,8 @@ const _handleAddItem = async (req, res) => {
   const name = body.name
   const owner = body.owner || (user ? user.username : 'Aluno')
   const weight = body.weight !== undefined ? Number(body.weight) : 0
-  const state = body.state || 'Na escola'
-  const school = body.school || (user ? user.school : '')
+  const state = body.state || 'Na organização'
+  const organization = body.organization || (user ? user.organization : '')
 
   if (!name || typeof name !== 'string') {
     _sendJson(res, 400, { error: 'Nome do aparelho é obrigatório.' })
@@ -396,13 +396,13 @@ const _handleAddItem = async (req, res) => {
   const createdAt = new Date().toISOString()
 
   try {
-    db.prepare('INSERT INTO items (uuid, name, owner, weight, state, school, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+    db.prepare('INSERT INTO items (uuid, name, owner, weight, state, organization, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
       uuid,
       name,
       owner,
       weight,
       state,
-      school,
+      organization,
       createdAt
     )
 
@@ -412,7 +412,7 @@ const _handleAddItem = async (req, res) => {
       owner,
       weight,
       state,
-      school,
+      organization,
       createdAt
     })
   } catch (err) {
@@ -552,28 +552,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (method === 'GET' && (pathname === '/schools' || pathname === '/api/schools')) {
-    _handleGetSchools(req, res)
+  if (method === 'GET' && (pathname === '/organizations' || pathname === '/api/organizations')) {
+    _handleGetOrganizations(req, res)
 
     return;
   }
 
-  if (method === 'POST' && (pathname === '/schools' || pathname === '/api/schools')) {
-    await _handleRegisterSchool(req, res)
+  if (method === 'POST' && (pathname === '/organizations' || pathname === '/api/organizations')) {
+    await _handleRegisterOrganization(req, res)
 
     return;
   }
 
-  const schoolDeleteMatch = pathname.match(/^\/(?:api\/)?schools\/(\d+)$/i)
+  const organizationDeleteMatch = pathname.match(/^\/(?:api\/)?organizations\/(\d+)$/i)
 
-  if (method === 'DELETE' && schoolDeleteMatch) {
-    await _handleDeleteSchool(req, res, schoolDeleteMatch[1])
+  if (method === 'DELETE' && organizationDeleteMatch) {
+    await _handleDeleteOrganization(req, res, organizationDeleteMatch[1])
 
     return;
   }
 
-  if ((method === 'DELETE' || method === 'POST') && (pathname === '/schools/delete' || pathname === '/api/schools/delete')) {
-    await _handleDeleteSchool(req, res, null)
+  if ((method === 'DELETE' || method === 'POST') && (pathname === '/organizations/delete' || pathname === '/api/organizations/delete')) {
+    await _handleDeleteOrganization(req, res, null)
 
     return;
   }
