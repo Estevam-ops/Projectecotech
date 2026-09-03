@@ -18,6 +18,8 @@ let selectedItemIds = new Set()
 const _updateDeleteButtonState = () => {
   const deleteBtn = $('#deleteSelectedBtn')
   const printBtn = $('#printLabels')
+  const bulkStatusBtn = $('#bulkStatusBtn')
+  const bulkStatusSelect = $('#bulkStatusSelect')
 
   const count = selectedItemIds.size
 
@@ -41,6 +43,17 @@ const _updateDeleteButtonState = () => {
 
     printBtn.innerHTML = `${iconSvg} ${labelText}`
   }
+
+  const bulkActive = count > 0
+
+  if (bulkStatusBtn) {
+    bulkStatusBtn.disabled = !bulkActive
+    bulkStatusBtn.style.opacity = bulkActive ? '1' : '0.5'
+    bulkStatusBtn.style.cursor = bulkActive ? 'pointer' : 'not-allowed'
+    bulkStatusBtn.textContent = count > 1 ? `Aplicar status (${count})` : 'Aplicar status'
+  }
+
+  if (bulkStatusSelect) bulkStatusSelect.disabled = !bulkActive
 }
 
 const _setSelectedRow = (itemId) => {
@@ -65,6 +78,7 @@ const _setSelectedRow = (itemId) => {
   _updateDeleteButtonState()
 }
 let registeredOrganizations = []
+const STATUS_OPTIONS = ['Na organização', 'No IFTM UPT', 'Coletado pela Cooperu', 'Desmantelado']
 let serverDown = false
 let authToken = sessionStorage.getItem('authToken') || null
 let currentUser = null
@@ -601,7 +615,7 @@ const _render = () => {
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
         <td data-label="Organização">${_escapeHtml(item.organization)}</td>
         <td data-label="Aluno">${_escapeHtml(item.student)}</td>
-        <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
+        <td data-label="Status"><select class="status-badge status-select ${statusClass}" data-id="${_escapeHtml(item.id)}" aria-label="Alterar status do aparelho">${STATUS_OPTIONS.map((opt) => `<option value="${_escapeHtml(opt)}"${opt === item.status ? ' selected' : ''}>${_escapeHtml(opt)}</option>`).join('')}</select></td>
         <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
 
       recordsTable.appendChild(tr)
@@ -629,10 +643,21 @@ const _render = () => {
       recordsTable.addEventListener('click', (e) => {
         const tr = e.target.closest('tr.selectable-row')
 
-        if (tr && !e.target.closest('.qr-cell')) {
+        if (tr && !e.target.closest('.qr-cell') && !e.target.closest('select')) {
           const itemId = tr.getAttribute('data-id')
 
           _setSelectedRow(itemId)
+        }
+      })
+    }
+
+    if (!recordsTable._hasStatusListener) {
+      recordsTable._hasStatusListener = true
+      recordsTable.addEventListener('change', (e) => {
+        const statusSelect = e.target.closest('select.status-select')
+
+        if (statusSelect) {
+          _setItemStatus(statusSelect.getAttribute('data-id'), statusSelect.value, statusSelect)
         }
       })
     }
@@ -1503,6 +1528,93 @@ const _printQrLabels = () => {
   window.print()
 }
 
+/* INFO: Single & bulk product status updates (admin only) */
+const _setItemStatus = async (id, state, selectEl) => {
+  if (selectEl) selectEl.disabled = true
+
+  try {
+    const token = sessionStorage.getItem('authToken')
+    const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ state })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      _showToast(data.error || 'Erro ao atualizar status.', 'error')
+      _render()
+
+      return;
+    }
+
+    const record = records.find((r) => r.id === id)
+
+    if (record) record.status = data.state || state
+
+    _render()
+    _showToast(data.message || 'Status atualizado com sucesso!', 'success')
+  } catch (err) {
+    console.warn('Failed to update item status:', err)
+    _showToast('Servidor offline. Não foi possível atualizar o status.', 'error')
+    _render()
+  }
+}
+
+const _applyBulkStatus = async () => {
+  if (selectedItemIds.size === 0) return;
+
+  const bulkSelect = $('#bulkStatusSelect')
+  const state = bulkSelect ? bulkSelect.value : ''
+
+  if (!state) {
+    _showToast('Escolha um status para aplicar aos itens selecionados.', 'warning')
+
+    return;
+  }
+
+  const token = sessionStorage.getItem('authToken')
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  }
+  let updated = 0
+
+  for (const id of Array.from(selectedItemIds)) {
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ state })
+      })
+
+      if (res.ok) updated += 1
+    } catch (err) {
+      console.warn('Failed to bulk update item status:', err)
+    }
+  }
+
+  const failed = selectedItemIds.size - updated
+
+  await _fetchRecords()
+
+  if (bulkSelect) bulkSelect.value = ''
+
+  _updateDeleteButtonState()
+
+  if (failed === 0) {
+    _showToast(`Status atualizado em ${updated} dispositivo(s)!`, 'success')
+  } else if (updated === 0) {
+    _showToast('Não foi possível atualizar o status dos itens selecionados.', 'error')
+  } else {
+    _showToast(`Status atualizado em ${updated} dispositivo(s). Falhas: ${failed}.`, 'warning')
+  }
+}
+
 if ($('#exportPdf')) $('#exportPdf').addEventListener('click', _exportPdf)
 if ($('#printLabels')) $('#printLabels').addEventListener('click', _printQrLabels)
 if ($('#deleteSelectedBtn')) {
@@ -1570,6 +1682,20 @@ if ($('#btnStudentMilestones')) {
 
 _fetchOrganizations()
 _fetchRecords()
+
+const bulkStatusSelect = $('#bulkStatusSelect')
+
+if (bulkStatusSelect) {
+  STATUS_OPTIONS.forEach((opt) => {
+    const option = document.createElement('option')
+
+    option.value = opt
+    option.textContent = opt
+    bulkStatusSelect.appendChild(option)
+  })
+}
+
+if ($('#bulkStatusBtn')) $('#bulkStatusBtn').addEventListener('click', _applyBulkStatus)
 
 
 /* INFO: INTERACTIVE MAP & COLLECTION POINTS */
