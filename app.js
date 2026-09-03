@@ -20,6 +20,7 @@ const _updateDeleteButtonState = () => {
   const printBtn = $('#printLabels')
   const bulkStatusBtn = $('#bulkStatusBtn')
   const bulkStatusSelect = $('#bulkStatusSelect')
+  const trashSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
 
   const count = selectedItemIds.size
 
@@ -28,20 +29,19 @@ const _updateDeleteButtonState = () => {
       deleteBtn.disabled = false
       deleteBtn.style.opacity = '1'
       deleteBtn.style.cursor = 'pointer'
-      deleteBtn.textContent = count > 1 ? `Excluir (${count})` : 'Excluir Selecionado'
+      deleteBtn.innerHTML = count > 1 ? `${trashSvg}<span>(${count})</span>` : trashSvg
     } else {
       deleteBtn.disabled = true
       deleteBtn.style.opacity = '0.5'
       deleteBtn.style.cursor = 'not-allowed'
-      deleteBtn.textContent = 'Excluir Selecionado'
+      deleteBtn.innerHTML = trashSvg
     }
   }
 
   if (printBtn) {
     const iconSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`
-    const labelText = count > 1 ? `Imprimir Etiquetas QR (${count})` : 'Imprimir Etiquetas QR'
 
-    printBtn.innerHTML = `${iconSvg} ${labelText}`
+    printBtn.innerHTML = count > 1 ? `${iconSvg}<span>(${count})</span>` : iconSvg
   }
 
   const bulkActive = count > 0
@@ -67,11 +67,17 @@ const _setSelectedRow = (itemId) => {
     recordsTable.querySelectorAll('tr.selectable-row').forEach((row) => {
       const id = row.getAttribute('data-id')
 
-      if (selectedItemIds.has(id)) {
+      const isRowSelected = selectedItemIds.has(id)
+
+      if (isRowSelected) {
         row.classList.add('is-selected')
       } else {
         row.classList.remove('is-selected')
       }
+
+      const rowCheckbox = row.querySelector('.row-select')
+
+      if (rowCheckbox) rowCheckbox.checked = isRowSelected
     })
   }
 
@@ -527,7 +533,7 @@ const _render = () => {
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
-    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
 
     return;
   }
@@ -599,7 +605,7 @@ const _render = () => {
   if (recordsTable) recordsTable.innerHTML = ''
 
   if (recordsTable && !records.length) {
-    recordsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+    recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
   } else if (recordsTable) {
     records.forEach((item) => {
       const tr = document.createElement('tr')
@@ -610,6 +616,7 @@ const _render = () => {
       tr.setAttribute('data-id', item.id)
 
       tr.innerHTML = `
+                <td data-label="Selecionar" class="select-cell"><input type="checkbox" class="row-select"${isSelected ? ' checked' : ''} aria-label="Selecionar aparelho para ações em massa" /></td>
                 <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
         <td data-label="Organização">${_escapeHtml(item.organization)}</td>
