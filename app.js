@@ -12,7 +12,6 @@ const studentArea = $('#studentArea')
 const recordForm = $('#recordForm')
 const recordsTable = $('#recordsTable')
 const studentRecordsTable = $('#studentRecordsTable')
-const selectAllRecords = $('#selectAllRecords')
 
 let records = []
 let selectedItemIds = new Set()
@@ -20,6 +19,13 @@ let selectedItemIds = new Set()
 const _updateDeleteButtonState = () => {
   const deleteBtn = $('#deleteSelectedBtn')
   const printBtn = $('#printLabels')
+  const bulkStatusBtn = $('#bulkStatusBtn')
+  const bulkStatusSelect = $('#bulkStatusSelect')
+  const selectAllBtn = $('#selectAllBtn')
+  const selectAllSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`
+  const deselectAllSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`
+  const partialSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="8" y1="12" x2="16" y2="12"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`
+  const trashSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`
 
   const count = selectedItemIds.size
 
@@ -28,21 +34,43 @@ const _updateDeleteButtonState = () => {
       deleteBtn.disabled = false
       deleteBtn.style.opacity = '1'
       deleteBtn.style.cursor = 'pointer'
-      deleteBtn.textContent = count > 1 ? `Excluir (${count})` : 'Excluir Selecionado'
+      deleteBtn.innerHTML = count > 1 ? `${trashSvg}<span>(${count})</span>` : trashSvg
     } else {
       deleteBtn.disabled = true
       deleteBtn.style.opacity = '0.5'
       deleteBtn.style.cursor = 'not-allowed'
-      deleteBtn.textContent = 'Excluir Selecionado'
+      deleteBtn.innerHTML = trashSvg
     }
   }
 
   if (printBtn) {
     const iconSvg = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>`
-    const labelText = count > 1 ? `Imprimir Etiquetas QR (${count})` : 'Imprimir Etiquetas QR'
 
-    printBtn.innerHTML = `${iconSvg} ${labelText}`
+    printBtn.innerHTML = count > 1 ? `${iconSvg}<span>(${count})</span>` : iconSvg
   }
+
+  const allRecords = (typeof records === 'undefined' || !Array.isArray(records)) ? [] : records
+  const allSelected = allRecords.length > 0 && count === allRecords.length
+
+  if (selectAllBtn) {
+    selectAllBtn.disabled = allRecords.length === 0
+    selectAllBtn.style.opacity = allRecords.length === 0 ? '0.5' : '1'
+    selectAllBtn.style.cursor = allRecords.length === 0 ? 'not-allowed' : 'pointer'
+    selectAllBtn.innerHTML = allSelected ? deselectAllSvg : (count > 0 ? partialSvg : selectAllSvg)
+    selectAllBtn.setAttribute('aria-label', allSelected ? 'Desmarcar todos' : 'Selecionar todos')
+    selectAllBtn.setAttribute('title', allSelected ? 'Desmarcar todos' : 'Selecionar todos')
+  }
+
+  const bulkActive = count > 0
+
+  if (bulkStatusBtn) {
+    bulkStatusBtn.disabled = !bulkActive
+    bulkStatusBtn.style.opacity = bulkActive ? '1' : '0.5'
+    bulkStatusBtn.style.cursor = bulkActive ? 'pointer' : 'not-allowed'
+    bulkStatusBtn.textContent = count > 1 ? `Aplicar status (${count})` : 'Aplicar status'
+  }
+
+  if (bulkStatusSelect) bulkStatusSelect.disabled = !bulkActive
 }
 
 const _syncSelectionUI = () => {
@@ -61,21 +89,11 @@ const _syncSelectionUI = () => {
     recordsTable.querySelectorAll('tr.selectable-row').forEach((row) => {
       const id = row.getAttribute('data-id')
       const isSelected = selectedItemIds.has(id)
-      const checkbox = row.querySelector('.record-select')
+      const rowCheckbox = row.querySelector('.row-select')
 
       row.classList.toggle('is-selected', isSelected)
-      if (checkbox) checkbox.checked = isSelected
+      if (rowCheckbox) rowCheckbox.checked = isSelected
     })
-  }
-
-  if (selectAllRecords) {
-    const selectedCount = records.reduce((count, item) => {
-      return count + (selectedItemIds.has(String(item.id)) ? 1 : 0)
-    }, 0)
-
-    selectAllRecords.disabled = serverDown || records.length === 0
-    selectAllRecords.checked = records.length > 0 && selectedCount === records.length
-    selectAllRecords.indeterminate = selectedCount > 0 && selectedCount < records.length
   }
 
   _updateDeleteButtonState()
@@ -91,16 +109,8 @@ const _setSelectedRow = (itemId, shouldSelect = null) => {
   _syncSelectionUI()
 }
 
-if (selectAllRecords) {
-  selectAllRecords.addEventListener('change', () => {
-    selectedItemIds = selectAllRecords.checked
-      ? new Set(records.map((item) => String(item.id)).filter(Boolean))
-      : new Set()
-
-    _syncSelectionUI()
-  })
-}
 let registeredOrganizations = []
+const STATUS_OPTIONS = ['Na organização', 'No IFTM UPT', 'Coletado pela Cooperu', 'Desmantelado']
 let serverDown = false
 let authToken = sessionStorage.getItem('authToken') || null
 let currentUser = null
@@ -651,21 +661,17 @@ const _render = () => {
       const statusClass = _getStatusClass(item.status)
       const itemId = String(item.id)
       const isSelected = selectedItemIds.has(itemId)
-      const selectionCell = selectAllRecords
-        ? `<td data-label="Selecionar" class="selection-cell"><input class="record-select" type="checkbox" aria-label="Selecionar ${_escapeHtml(item.device || itemId)}" ${isSelected ? 'checked' : ''} /></td>`
-        : ''
 
       tr.className = `selectable-row ${isSelected ? 'is-selected' : ''}`
       tr.setAttribute('data-id', itemId)
 
       tr.innerHTML = `
-        ${selectionCell}
-        <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
+        <td data-label="Selecionar" class="select-cell"><input type="checkbox" class="row-select"${isSelected ? ' checked' : ''} aria-label="Selecionar ${_escapeHtml(item.device || itemId)} para ações em massa" /></td>
         <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
         <td data-label="Organização">${_escapeHtml(item.organization)}</td>
         <td data-label="Usuário">${_escapeHtml(item.student)}</td>
-        <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
+        <td data-label="Status"><select class="status-badge status-select ${statusClass}" data-id="${_escapeHtml(item.id)}" aria-label="Alterar status do aparelho">${STATUS_OPTIONS.map((opt) => `<option value="${_escapeHtml(opt)}"${opt === item.status ? ' selected' : ''}>${_escapeHtml(opt)}</option>`).join('')}</select></td>
         <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
 
       recordsTable.appendChild(tr)
@@ -693,7 +699,7 @@ const _render = () => {
       recordsTable.addEventListener('click', (e) => {
         const tr = e.target.closest('tr.selectable-row')
 
-        if (tr && !e.target.closest('.qr-cell') && !e.target.closest('.record-select')) {
+        if (tr && !e.target.closest('.qr-cell') && !e.target.closest('select') && !e.target.closest('.row-select')) {
           const itemId = tr.getAttribute('data-id')
 
           _setSelectedRow(itemId)
@@ -701,10 +707,21 @@ const _render = () => {
       })
 
       recordsTable.addEventListener('change', (e) => {
-        const checkbox = e.target.closest('.record-select')
+        const checkbox = e.target.closest('.row-select')
         const tr = checkbox?.closest('tr.selectable-row')
 
         if (checkbox && tr) _setSelectedRow(tr.getAttribute('data-id'), checkbox.checked)
+      })
+    }
+
+    if (!recordsTable._hasStatusListener) {
+      recordsTable._hasStatusListener = true
+      recordsTable.addEventListener('change', (e) => {
+        const statusSelect = e.target.closest('select.status-select')
+
+        if (statusSelect) {
+          _setItemStatus(statusSelect.getAttribute('data-id'), statusSelect.value, statusSelect)
+        }
       })
     }
   }
@@ -1576,6 +1593,106 @@ const _printQrLabels = () => {
   window.print()
 }
 
+const _toggleSelectAll = () => {
+  const allRecords = (typeof records === 'undefined' || !Array.isArray(records)) ? [] : records
+
+  if (allRecords.length > 0 && selectedItemIds.size === allRecords.length) {
+    selectedItemIds.clear()
+  } else {
+    allRecords.forEach((r) => selectedItemIds.add(String(r.id)))
+  }
+
+  _render()
+  _updateDeleteButtonState()
+}
+
+/* INFO: Single & bulk product status updates (admin only) */
+const _setItemStatus = async (id, state, selectEl) => {
+  if (selectEl) selectEl.disabled = true
+
+  try {
+    const token = sessionStorage.getItem('authToken')
+    const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ state })
+    })
+
+    const data = await res.json().catch(() => ({}))
+
+    if (!res.ok) {
+      _showToast(data.error || 'Erro ao atualizar status.', 'error')
+      _render()
+
+      return;
+    }
+
+    const record = records.find((r) => r.id === id)
+
+    if (record) record.status = data.state || state
+
+    _render()
+    _showToast(data.message || 'Status atualizado com sucesso!', 'success')
+  } catch (err) {
+    console.warn('Failed to update item status:', err)
+    _showToast('Servidor offline. Não foi possível atualizar o status.', 'error')
+    _render()
+  }
+}
+
+const _applyBulkStatus = async () => {
+  if (selectedItemIds.size === 0) return;
+
+  const bulkSelect = $('#bulkStatusSelect')
+  const state = bulkSelect ? bulkSelect.value : ''
+
+  if (!state) {
+    _showToast('Escolha um status para aplicar aos itens selecionados.', 'warning')
+
+    return;
+  }
+
+  const token = sessionStorage.getItem('authToken')
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  }
+  let updated = 0
+
+  for (const id of Array.from(selectedItemIds)) {
+    try {
+      const res = await globalThis.fetch(`${SERVER_URL}/items/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ state })
+      })
+
+      if (res.ok) updated += 1
+    } catch (err) {
+      console.warn('Failed to bulk update item status:', err)
+    }
+  }
+
+  const failed = selectedItemIds.size - updated
+
+  await _fetchRecords()
+
+  if (bulkSelect) bulkSelect.value = ''
+
+  _updateDeleteButtonState()
+
+  if (failed === 0) {
+    _showToast(`Status atualizado em ${updated} dispositivo(s)!`, 'success')
+  } else if (updated === 0) {
+    _showToast('Não foi possível atualizar o status dos itens selecionados.', 'error')
+  } else {
+    _showToast(`Status atualizado em ${updated} dispositivo(s). Falhas: ${failed}.`, 'warning')
+  }
+}
+
 if ($('#exportPdf')) $('#exportPdf').addEventListener('click', _exportPdf)
 if ($('#printLabels')) $('#printLabels').addEventListener('click', _printQrLabels)
 if ($('#deleteSelectedBtn')) {
@@ -1658,6 +1775,21 @@ if ($('#btnStudentMilestones')) {
 
 _fetchOrganizations()
 _fetchRecords()
+
+const bulkStatusSelect = $('#bulkStatusSelect')
+
+if (bulkStatusSelect) {
+  STATUS_OPTIONS.forEach((opt) => {
+    const option = document.createElement('option')
+
+    option.value = opt
+    option.textContent = opt
+    bulkStatusSelect.appendChild(option)
+  })
+}
+
+if ($('#bulkStatusBtn')) $('#bulkStatusBtn').addEventListener('click', _applyBulkStatus)
+if ($('#selectAllBtn')) $('#selectAllBtn').addEventListener('click', _toggleSelectAll)
 
 
 /* INFO: INTERACTIVE MAP & COLLECTION POINTS */

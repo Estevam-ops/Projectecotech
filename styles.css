@@ -835,6 +835,34 @@ body {
   color: #fff;
 }
 
+.split-button {
+  display: inline-flex;
+  align-items: stretch;
+}
+
+.split-button .button {
+  border-radius: 0;
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
+.split-button .button:first-child {
+  border-right: none;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+
+.split-button .button:last-child {
+  border-left: none;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.button.icon-only {
+  padding-left: 13px;
+  padding-right: 13px;
+}
+
 .btn-link {
   background: transparent;
   border: none;
@@ -1937,44 +1965,6 @@ body {
 }
 
 /* Selectable & Selected Table Rows */
-.select-all-control {
-  min-height: 38px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-card);
-  color: var(--text-primary);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.select-all-control input,
-.record-select {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--accent-green);
-  cursor: pointer;
-}
-
-.select-all-control input:disabled,
-.select-all-control input:disabled + span {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.selection-column,
-.selection-cell {
-  width: 52px;
-  padding-left: 14px;
-  padding-right: 14px;
-  text-align: center;
-}
-
 .table-wrap tbody tr.selectable-row {
   cursor: pointer;
   transition: background-color var(--duration-fast) ease, outline var(--duration-fast) ease;
@@ -2439,6 +2429,68 @@ tr:last-child td { border-bottom: none; }
 }
 .status-pendente::before,
 .status-no-iftm::before { background: #f59e0b; }
+
+.status-select {
+  font: inherit;
+  border: 1px solid transparent;
+  cursor: pointer;
+  max-width: 100%;
+}
+
+.status-select:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.status-select option {
+  color: #12201a;
+  background: #fff;
+  font-weight: 400;
+}
+
+.select-cell {
+  width: 40px;
+  text-align: center;
+}
+
+.row-select {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  vertical-align: middle;
+  cursor: pointer;
+  accent-color: var(--accent-green);
+}
+
+.split-button.split-apply {
+  flex: 0 1 auto;
+  max-width: 340px;
+}
+
+.split-button select:first-child {
+  border-right: none;
+  border-radius: 0;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+  background: var(--bg-card);
+}
+
+.split-button > :focus {
+  position: relative;
+  z-index: 1;
+}
+
+#bulkStatusSelect {
+  width: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 180px;
+}
+
+#bulkStatusSelect:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ============ Toast Notifications (Spring Entry/Exit) ============ */
 
