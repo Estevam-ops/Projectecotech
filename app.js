@@ -527,7 +527,7 @@ const _render = () => {
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
     })
 
-    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
+    if (recordsTable) recordsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); font-weight: 600; padding: 1.5rem;">Servidor offline. Não foi possível conectar ao backend.</td></tr>`
 
     return;
   }
@@ -599,7 +599,7 @@ const _render = () => {
   if (recordsTable) recordsTable.innerHTML = ''
 
   if (recordsTable && !records.length) {
-    recordsTable.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
+    recordsTable.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 2rem; color: var(--text-secondary);">Nenhum aparelho cadastrado no momento. Use o formulário acima para registrar o primeiro item.</td></tr>`
   } else if (recordsTable) {
     records.forEach((item) => {
       const tr = document.createElement('tr')
@@ -610,8 +610,7 @@ const _render = () => {
       tr.setAttribute('data-id', item.id)
 
       tr.innerHTML = `
-        <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
-        <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
+                <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
         <td data-label="Organização">${_escapeHtml(item.organization)}</td>
         <td data-label="Aluno">${_escapeHtml(item.student)}</td>
