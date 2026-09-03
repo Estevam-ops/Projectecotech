@@ -2345,12 +2345,12 @@ tr:last-child td { border-bottom: none; }
 }
 
 .status-coletado,
-.status-na-escola {
+.status-na-organização {
   background: var(--green-soft);
   color: var(--accent-green);
 }
 .status-coletado::before,
-.status-na-escola::before { background: var(--accent-green); }
+.status-na-organização::before { background: var(--accent-green); }
 
 .status-pendente,
 .status-no-iftm {

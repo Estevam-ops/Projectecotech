@@ -77,8 +77,8 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 10v6M2 10v6M12 2v20M2 10l10-5 10 5M2 16l10 5 10-5"/></svg>
               </div>
               <div class="metric-body">
-                <div class="metric-value" id="topSchool">-</div>
-                <span class="metric-label">Escola com Maior Coleta</span>
+                <div class="metric-value" id="topOrganization">-</div>
+                <span class="metric-label">Organização com Maior Coleta</span>
               </div>
             </div>
 
@@ -110,16 +110,16 @@
                     <label for="weight">Peso estimado (kg)</label>
                     <input id="weight" class="field-input" type="number" min="0.01" step="0.01" required placeholder="Ex.: 1.50" />
 
-                    <label for="school">Escola parceira (obrigatório)</label>
-                    <input id="school" class="field-input" required list="schoolOptions" placeholder="Selecione uma escola cadastrada..." autocomplete="off" />
-                    <datalist id="schoolOptions"></datalist>
+                    <label for="organization">Organização (obrigatório)</label>
+                    <input id="organization" class="field-input" required list="organizationOptions" placeholder="Selecione uma organização cadastrada..." autocomplete="off" />
+                    <datalist id="organizationOptions"></datalist>
 
                     <label for="student">Aluno responsável</label>
                     <input id="student" class="field-input" required placeholder="e-mail do aluno" />
 
                     <label for="status">Status do descarte</label>
                     <select id="status" class="field-input">
-                      <option value="Na escola">Na escola</option>
+                      <option value="Na organização">Na organização</option>
                       <option value="No IFTM UPT">No IFTM UPT</option>
                       <option value="Coletado pela Cooperu">Coletado pela Cooperu</option>
                       <option value="Desmantelado">Desmantelado</option>
@@ -129,19 +129,19 @@
                   </form>
                 </div>
 
-                <!-- Card 2: School Management (below device form) -->
+                <!-- Card 2: Organization Management (below device form) -->
                 <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;">
-                  <h3 style="font-size: var(--text-lg); margin-top: 0; margin-bottom: 8px; font-family: var(--font-display);">Escolas Parceiras</h3>
-                  <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 16px;">Cadastre novas escolas autorizadas ou remova escolas sem descartes vinculados.</p>
+                  <h3 style="font-size: var(--text-lg); margin-top: 0; margin-bottom: 8px; font-family: var(--font-display);">Organizações</h3>
+                  <p style="font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: 16px;">Cadastre novas organizações autorizadas ou remova organizações sem descartes vinculados.</p>
 
-                  <form id="schoolForm" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
-                    <label for="newSchoolName" style="font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; color: var(--text-muted);">Nome da escola</label>
-                    <input id="newSchoolName" class="field-input" required placeholder="Ex.: Escola Municipal Uberaba" />
-                    <button class="button secondary" type="submit" style="width: 100%;">Cadastrar Escola</button>
+                  <form id="organizationForm" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 18px;">
+                    <label for="newOrganizationName" style="font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; color: var(--text-muted);">Nome da organização</label>
+                    <input id="newOrganizationName" class="field-input" required placeholder="Ex.: Organização Parceira Uberaba" />
+                    <button class="button secondary" type="submit" style="width: 100%;">Cadastrar Organização</button>
                   </form>
 
-                  <label style="font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">Escolas Cadastradas</label>
-                  <div id="schoolsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                  <label style="font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; color: var(--text-muted); display: block; margin-bottom: 8px;">Organizações Cadastradas</label>
+                  <div id="organizationsList" style="display: flex; flex-direction: column; gap: 8px;"></div>
                 </div>
               </aside>
 
@@ -169,7 +169,7 @@
                         <th scope="col">ID</th>
                         <th scope="col">Aparelho</th>
                         <th scope="col">Peso</th>
-                        <th scope="col">Escola</th>
+                        <th scope="col">Organização</th>
                         <th scope="col">Aluno</th>
                         <th scope="col">Status</th>
                         <th scope="col" style="text-align: center;">QR Code</th>

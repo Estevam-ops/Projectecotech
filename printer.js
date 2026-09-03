@@ -47,7 +47,7 @@ const printQrCode = (id, metadata = {}) => {
   }
 
   const device = metadata.device || 'Aparelho Eletrônico'
-  const school = metadata.school || 'EcoTech UPT'
+  const organization = metadata.organization || 'EcoTech UPT'
   const student = metadata.student || ''
 
   frameDoc.open()
@@ -100,7 +100,7 @@ const printQrCode = (id, metadata = {}) => {
           <div class="qr-title">ECOTECH · REGISTRO</div>
           <div class="qr-code" id="qrContainer"></div>
           <div class="qr-id">${id}</div>
-          <div class="qr-meta">${device} ${school ? '• ' + school : ''} ${student ? '• ' + student : ''}</div>
+          <div class="qr-meta">${device} ${organization ? '• ' + organization : ''} ${student ? '• ' + student : ''}</div>
         </div>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
         <script>

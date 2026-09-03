@@ -64,7 +64,7 @@ const _setSelectedRow = (itemId) => {
 
   _updateDeleteButtonState()
 }
-let registeredSchools = []
+let registeredOrganizations = []
 let serverDown = false
 let authToken = sessionStorage.getItem('authToken') || null
 let currentUser = null
@@ -169,7 +169,7 @@ const _openFullscreenQr = (item) => {
   const metaEl = $('#fullscreenQrMeta')
 
   if (idEl) idEl.textContent = item.id
-  if (metaEl) metaEl.textContent = `${item.device} ${item.school ? '• ' + item.school : ''}`
+  if (metaEl) metaEl.textContent = `${item.device} ${item.organization ? '• ' + item.organization : ''}`
 
   _addQr(codeContainer, item.id, 260)
 
@@ -178,10 +178,10 @@ const _openFullscreenQr = (item) => {
 }
 
 
-/* INFO: Server-side school deletion with product dependency check */
-const _deleteSchool = async (schoolObj, targetBtn) => {
-  const name = typeof schoolObj === 'string' ? schoolObj : schoolObj.name
-  const id = typeof schoolObj === 'object' ? schoolObj.id : null
+/* INFO: Server-side organization deletion with product dependency check */
+const _deleteOrganization = async (organizationObj, targetBtn) => {
+  const name = typeof organizationObj === 'string' ? organizationObj : organizationObj.name
+  const id = typeof organizationObj === 'object' ? organizationObj.id : null
 
   if (targetBtn) {
     targetBtn.disabled = true
@@ -189,7 +189,7 @@ const _deleteSchool = async (schoolObj, targetBtn) => {
   }
 
   try {
-    const url = id ? `${SERVER_URL}/schools/${id}` : `${SERVER_URL}/schools/delete`
+    const url = id ? `${SERVER_URL}/organizations/${id}` : `${SERVER_URL}/organizations/delete`
     const res = await globalThis.fetch(url, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -199,28 +199,28 @@ const _deleteSchool = async (schoolObj, targetBtn) => {
     const data = await res.json().catch(() => ({}))
 
     if (res.ok) {
-      _showToast(data.message || `Escola "${name}" excluída com sucesso!`, 'success')
-      await _fetchSchools()
+      _showToast(data.message || `Organização "${name}" excluída com sucesso!`, 'success')
+      await _fetchOrganizations()
 
       return;
     }
 
-    _showToast(data.error || 'Erro ao excluir escola.', 'error')
+    _showToast(data.error || 'Erro ao excluir organização.', 'error')
   } catch (err) {
-    console.warn('Failed to delete school:', err)
+    console.warn('Failed to delete organization:', err)
 
     /* Local fallback check if server offline */
-    const isLinkedLocally = records.some((r) => r.school.toLowerCase() === name.toLowerCase())
+    const isLinkedLocally = records.some((r) => r.organization.toLowerCase() === name.toLowerCase())
 
     if (isLinkedLocally) {
-      _showToast(`Não é possível excluir a escola "${name}" pois existem dispositivos vinculados a ela.`, 'error')
+      _showToast(`Não é possível excluir a organização "${name}" pois existem dispositivos vinculados a ela.`, 'error')
 
       return;
     }
 
-    registeredSchools = registeredSchools.filter((s) => (typeof s === 'string' ? s : s.name).toLowerCase() !== name.toLowerCase())
-    _renderSchoolsUI()
-    _showToast(`Escola "${name}" removida localmente.`, 'warning')
+    registeredOrganizations = registeredOrganizations.filter((s) => (typeof s === 'string' ? s : s.name).toLowerCase() !== name.toLowerCase())
+    _renderOrganizationsUI()
+    _showToast(`Organização "${name}" removida localmente.`, 'warning')
   } finally {
     if (targetBtn) {
       targetBtn.disabled = false
@@ -230,13 +230,13 @@ const _deleteSchool = async (schoolObj, targetBtn) => {
 }
 
 
-/* INFO: Fetch and render registered schools list & autocomplete datalist */
-const _renderSchoolsUI = () => {
-  const datalist = $('#schoolOptions')
+/* INFO: Fetch and render registered organizations list & autocomplete datalist */
+const _renderOrganizationsUI = () => {
+  const datalist = $('#organizationOptions')
 
   if (datalist) {
     datalist.innerHTML = ''
-    registeredSchools.forEach((s) => {
+    registeredOrganizations.forEach((s) => {
       const name = typeof s === 'string' ? s : s.name
       const option = document.createElement('option')
 
@@ -245,17 +245,17 @@ const _renderSchoolsUI = () => {
     })
   }
 
-  const schoolsList = $('#schoolsList')
+  const organizationsList = $('#organizationsList')
 
-  if (schoolsList) {
-    schoolsList.innerHTML = ''
+  if (organizationsList) {
+    organizationsList.innerHTML = ''
 
-    if (!registeredSchools.length) {
-      schoolsList.innerHTML = '<span style="font-size: var(--text-xs); color: var(--text-muted);">Nenhuma escola cadastrada.</span>'
+    if (!registeredOrganizations.length) {
+      organizationsList.innerHTML = '<span style="font-size: var(--text-xs); color: var(--text-muted);">Nenhuma organização cadastrada.</span>'
       return;
     }
 
-    registeredSchools.forEach((s) => {
+    registeredOrganizations.forEach((s) => {
       const name = typeof s === 'string' ? s : s.name
       const item = document.createElement('div')
 
@@ -286,37 +286,37 @@ const _renderSchoolsUI = () => {
       delBtn.style.padding = '2px 8px'
       delBtn.style.fontSize = '0.7rem'
       delBtn.textContent = 'Excluir'
-      delBtn.addEventListener('click', (e) => _deleteSchool(s, e.currentTarget))
+      delBtn.addEventListener('click', (e) => _deleteOrganization(s, e.currentTarget))
 
       item.appendChild(textSpan)
       item.appendChild(delBtn)
-      schoolsList.appendChild(item)
+      organizationsList.appendChild(item)
     })
   }
 }
 
-const _fetchSchools = async () => {
+const _fetchOrganizations = async () => {
   try {
-    const res = await globalThis.fetch(`${SERVER_URL}/schools`)
+    const res = await globalThis.fetch(`${SERVER_URL}/organizations`)
 
     if (res.ok) {
       const data = await res.json()
 
-      if (Array.isArray(data.schools)) {
-        registeredSchools = data.schools
+      if (Array.isArray(data.organizations)) {
+        registeredOrganizations = data.organizations
       }
     }
   } catch (err) {
-    console.warn('Could not fetch schools from server:', err)
+    console.warn('Could not fetch organizations from server:', err)
   }
 
-  _renderSchoolsUI()
+  _renderOrganizationsUI()
 }
 
 
-/* INFO: Single-pass stats calculator for total weight and school/student rankings */
+/* INFO: Single-pass stats calculator for total weight and organization/student rankings */
 const _calcStats = () => {
-  const totals = { school: new Map(), student: new Map() }
+  const totals = { organization: new Map(), student: new Map() }
   let totalWeight = 0
 
   records.forEach((item) => {
@@ -324,7 +324,7 @@ const _calcStats = () => {
 
     totalWeight += weight
 
-    ;['school', 'student'].forEach((field) => {
+    ;['organization', 'student'].forEach((field) => {
       const val = item[field]
 
       if (val) totals[field].set(val, (totals[field].get(val) || 0) + weight)
@@ -333,7 +333,7 @@ const _calcStats = () => {
 
   return {
     totalWeight,
-    school: [...totals.school.entries()].sort((a, b) => b[1] - a[1]),
+    organization: [...totals.organization.entries()].sort((a, b) => b[1] - a[1]),
     student: [...totals.student.entries()].sort((a, b) => b[1] - a[1])
   }
 }
@@ -370,7 +370,7 @@ const _getStatusClass = (status = '') => {
   const lower = status.toLowerCase()
 
   if (lower.includes('coletado')) return 'status-coletado'
-  if (lower.includes('escola')) return 'status-na-escola'
+  if (lower.includes('organização') || lower.includes('organiz')) return 'status-na-organização'
   if (lower.includes('iftm')) return 'status-no-iftm'
 
   return 'status-pendente'
@@ -382,10 +382,10 @@ const _renderStudentPortal = () => {
   if (!studentArea) return;
 
   const username = (currentUser && (currentUser.full_name || currentUser.username || currentUser.email)) || 'Aluno'
-  const school = (currentUser && currentUser.school) || ''
+  const organization = (currentUser && currentUser.organization) || ''
 
   if ($('#studentWelcome')) $('#studentWelcome').textContent = `Bem-vindo(a), ${username}!`
-  if ($('#studentSub')) $('#studentSub').textContent = school ? `Escola parceira: ${school}` : ''
+  if ($('#studentSub')) $('#studentSub').textContent = organization ? `Organização: ${organization}` : ''
 
   const userFullName = (currentUser && currentUser.full_name ? currentUser.full_name : '').trim().toLowerCase()
   const userUsername = (currentUser && currentUser.username ? currentUser.username : '').trim().toLowerCase()
@@ -498,7 +498,7 @@ const _render = () => {
   const metricEls = {
     totalItems: $('#totalItems'),
     totalWeight: $('#totalWeight'),
-    topSchool: $('#topSchool'),
+    topOrganization: $('#topOrganization'),
     topStudent: $('#topStudent')
   }
 
@@ -507,7 +507,7 @@ const _render = () => {
       if (el) el.textContent = 'Servidor offline'
     })
 
-    ;['#schoolRanking', '#classRanking', '#studentRanking'].forEach((sel) => {
+    ;['#organizationRanking', '#classRanking', '#studentRanking'].forEach((sel) => {
       const el = $(sel)
 
       if (el) el.innerHTML = '<li class="empty-state"><div class="empty-title">Servidor offline</div><p class="empty-text">Não foi possível carregar o ranking.</p></li>'
@@ -523,15 +523,15 @@ const _render = () => {
   if (metricEls.totalItems) metricEls.totalItems.textContent = records.length
   if (metricEls.totalWeight) metricEls.totalWeight.textContent = `${stats.totalWeight.toFixed(2)} kg`
 
-  if (metricEls.topSchool) {
-    if (stats.school[0]) {
-      const schoolName = stats.school[0][0]
-      const weightStr = `(${stats.school[0][1].toFixed(2)} kg)`
-      metricEls.topSchool.innerHTML = `<span class="metric-title-text">${_escapeHtml(schoolName)}</span> <span class="metric-weight-text">${weightStr}</span>`
-      metricEls.topSchool.title = schoolName
+  if (metricEls.topOrganization) {
+    if (stats.organization[0]) {
+      const organizationName = stats.organization[0][0]
+      const weightStr = `(${stats.organization[0][1].toFixed(2)} kg)`
+      metricEls.topOrganization.innerHTML = `<span class="metric-title-text">${_escapeHtml(organizationName)}</span> <span class="metric-weight-text">${weightStr}</span>`
+      metricEls.topOrganization.title = organizationName
     } else {
-      metricEls.topSchool.textContent = '-'
-      metricEls.topSchool.removeAttribute('title')
+      metricEls.topOrganization.textContent = '-'
+      metricEls.topOrganization.removeAttribute('title')
     }
   }
 
@@ -548,7 +548,7 @@ const _render = () => {
   }
 
   const rankTargets = [
-    { target: $('#schoolRanking'), rows: stats.school },
+    { target: $('#organizationRanking'), rows: stats.organization },
     { target: $('#studentRanking'), rows: stats.student }
   ]
 
@@ -599,7 +599,7 @@ const _render = () => {
         <td data-label="ID"><strong>${_escapeHtml(item.id)}</strong></td>
         <td data-label="Aparelho">${_escapeHtml(item.device)}</td>
         <td data-label="Peso"><strong>${Number(item.weight).toFixed(2)} kg</strong></td>
-        <td data-label="Escola">${_escapeHtml(item.school)}</td>
+        <td data-label="Organização">${_escapeHtml(item.organization)}</td>
         <td data-label="Aluno">${_escapeHtml(item.student)}</td>
         <td data-label="Status"><span class="status-badge ${statusClass}">${_escapeHtml(item.status)}</span></td>
         <td data-label="QR" class="qr-cell" role="button" tabindex="0" title="Clique para visualizar QR Code em tela cheia" style="text-align: center; vertical-align: middle;"></td>`
@@ -657,9 +657,9 @@ const _fetchRecords = async () => {
           id: item.uuid || item.id,
           device: item.name || '',
           weight: Number(item.weight || 0),
-          school: item.school || '',
+          organization: item.organization || '',
           student: item.owner_name || item.ownerName || item.full_name || item.owner || '',
-          status: item.state || 'Na escola',
+          status: item.state || 'Na organização',
           createdAt: item.createdAt || item.created_at || new Date().toISOString()
         }))
       } else {
@@ -744,55 +744,55 @@ if ($('#switchToLogin')) $('#switchToLogin').addEventListener('click', () => _sw
 window.addEventListener('resize', _updateAuthTabIndicator, { passive: true })
 document.addEventListener('DOMContentLoaded', () => {
   _updateAuthTabIndicator()
-  _fetchSchools()
+  _fetchOrganizations()
 })
 
 
-/* INFO: School Registration Handler (Admin) */
+/* INFO: Organization Registration Handler (Admin) */
 
-const schoolForm = $('#schoolForm')
+const organizationForm = $('#organizationForm')
 
-if (schoolForm) {
-  schoolForm.addEventListener('submit', async (event) => {
+if (organizationForm) {
+  organizationForm.addEventListener('submit', async (event) => {
     event.preventDefault()
 
-    const nameInput = $('#newSchoolName')
-    const schoolName = nameInput ? nameInput.value.trim() : ''
+    const nameInput = $('#newOrganizationName')
+    const organizationName = nameInput ? nameInput.value.trim() : ''
 
-    if (!schoolName) return;
+    if (!organizationName) return;
 
-    const exists = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === schoolName.toLowerCase())
+    const exists = registeredOrganizations.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === organizationName.toLowerCase())
 
     if (exists) {
-      _showToast('Esta escola já está cadastrada.', 'error')
+      _showToast('Esta organização já está cadastrada.', 'error')
 
       return;
     }
 
     try {
-      const res = await globalThis.fetch(`${SERVER_URL}/schools`, {
+      const res = await globalThis.fetch(`${SERVER_URL}/organizations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: schoolName, city: 'Uberaba' })
+        body: JSON.stringify({ name: organizationName, city: 'Uberaba' })
       })
 
       if (res.ok) {
-        _showToast('Escola cadastrada com sucesso!', 'success')
+        _showToast('Organização cadastrada com sucesso!', 'success')
         if (nameInput) nameInput.value = ''
-        await _fetchSchools()
+        await _fetchOrganizations()
 
         return;
       }
 
       const errData = await res.json().catch(() => ({}))
-      _showToast(errData.error || 'Erro ao cadastrar escola.', 'error')
+      _showToast(errData.error || 'Erro ao cadastrar organização.', 'error')
     } catch (err) {
-      console.warn('Failed to post new school:', err)
+      console.warn('Failed to post new organization:', err)
 
-      registeredSchools.push({ id: Date.now(), name: schoolName })
-      _renderSchoolsUI()
+      registeredOrganizations.push({ id: Date.now(), name: organizationName })
+      _renderOrganizationsUI()
       if (nameInput) nameInput.value = ''
-      _showToast('Escola adicionada localmente!', 'warning')
+      _showToast('Organização adicionada localmente!', 'warning')
     }
   })
 }
@@ -807,13 +807,13 @@ if (registerForm) {
     const submitBtn = registerForm.querySelector('button[type="submit"]')
     const fullNameInput = $('#regFullName')
     const emailInput = $('#regEmail')
-    const schoolInput = $('#regSchool')
+    const organizationInput = $('#regOrganization')
     const gradeInput = $('#regGrade')
     const passwordInput = $('#regPassword')
 
     const fullName = fullNameInput ? fullNameInput.value.trim() : ''
     const email = emailInput ? emailInput.value.trim() : ''
-    const school = schoolInput ? schoolInput.value.trim() : ''
+    const organization = organizationInput ? organizationInput.value.trim() : ''
     const grade = gradeInput ? gradeInput.value.trim() : ''
     const password = passwordInput ? passwordInput.value : ''
 
@@ -833,21 +833,21 @@ if (registerForm) {
       return;
     }
 
-    /* INFO: Strict Validation - Student registration school must match a registered school */
-    const isSchoolValid = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === school.toLowerCase())
+    /* INFO: Strict Validation - Student registration organization must match a registered organization */
+    const isOrganizationValid = registeredOrganizations.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === organization.toLowerCase())
 
-    if (!isSchoolValid) {
-      if (schoolInput) {
-        schoolInput.classList.add('is-invalid')
-        schoolInput.setCustomValidity('Escola não cadastrada. Selecione uma escola válida.')
-        schoolInput.reportValidity()
-        schoolInput.addEventListener('input', () => {
-          schoolInput.classList.remove('is-invalid')
-          schoolInput.setCustomValidity('')
+    if (!isOrganizationValid) {
+      if (organizationInput) {
+        organizationInput.classList.add('is-invalid')
+        organizationInput.setCustomValidity('Organização não cadastrada. Selecione uma organização válida.')
+        organizationInput.reportValidity()
+        organizationInput.addEventListener('input', () => {
+          organizationInput.classList.remove('is-invalid')
+          organizationInput.setCustomValidity('')
         }, { once: true })
       }
 
-      _showToast('A escola informada não está cadastrada no sistema. Selecione uma escola autorizada.', 'error')
+      _showToast('A organização informada não está cadastrada no sistema. Selecione uma organização autorizada.', 'error')
 
       return;
     }
@@ -863,7 +863,7 @@ if (registerForm) {
           fullName,
           username: email,
           email,
-          school,
+          organization,
           grade,
           password,
           role: 'user'
@@ -993,9 +993,9 @@ if (recordForm) {
     event.preventDefault()
 
     const submitBtn = recordForm.querySelector('button[type="submit"]')
-    const textInputs = [$('#device'), $('#school'), $('#student')].filter(Boolean)
+    const textInputs = [$('#device'), $('#organization'), $('#student')].filter(Boolean)
     const weightInput = $('#weight')
-    const schoolInput = $('#school')
+    const organizationInput = $('#organization')
     const studentInput = $('#student')
 
     textInputs.concat(weightInput).forEach((input) => {
@@ -1016,22 +1016,22 @@ if (recordForm) {
       return;
     }
 
-    /* INFO: Strict validation 1 - School must match a registered school */
-    const enteredSchool = schoolInput ? schoolInput.value.trim() : ''
-    const isSchoolValid = registeredSchools.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredSchool.toLowerCase())
+    /* INFO: Strict validation 1 - Organization must match a registered organization */
+    const enteredOrganization = organizationInput ? organizationInput.value.trim() : ''
+    const isOrganizationValid = registeredOrganizations.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredOrganization.toLowerCase())
 
-    if (!isSchoolValid) {
-      if (schoolInput) {
-        schoolInput.classList.add('is-invalid')
-        schoolInput.setCustomValidity('Escola não cadastrada. Selecione ou cadastre uma escola válida.')
-        schoolInput.reportValidity()
-        schoolInput.addEventListener('input', () => {
-          schoolInput.classList.remove('is-invalid')
-          schoolInput.setCustomValidity('')
+    if (!isOrganizationValid) {
+      if (organizationInput) {
+        organizationInput.classList.add('is-invalid')
+        organizationInput.setCustomValidity('Organização não cadastrada. Selecione ou cadastre uma organização válida.')
+        organizationInput.reportValidity()
+        organizationInput.addEventListener('input', () => {
+          organizationInput.classList.remove('is-invalid')
+          organizationInput.setCustomValidity('')
         }, { once: true })
       }
 
-      _showToast('A escola informada não está cadastrada. Cadastre a escola primeiro ou selecione uma existente.', 'error')
+      _showToast('A organização informada não está cadastrada. Cadastre a organização primeiro ou selecione uma existente.', 'error')
 
       return;
     }
@@ -1076,17 +1076,17 @@ if (recordForm) {
       return;
     }
 
-    /* Standardize school name casing to registered version */
-    const matchedSchoolObj = registeredSchools.find((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredSchool.toLowerCase())
-    const finalSchoolName = matchedSchoolObj ? (typeof matchedSchoolObj === 'string' ? matchedSchoolObj : matchedSchoolObj.name) : enteredSchool
+    /* Standardize organization name casing to registered version */
+    const matchedOrganizationObj = registeredOrganizations.find((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredOrganization.toLowerCase())
+    const finalOrganizationName = matchedOrganizationObj ? (typeof matchedOrganizationObj === 'string' ? matchedOrganizationObj : matchedOrganizationObj.name) : enteredOrganization
 
     const record = {
       id: _createId(),
       device: $('#device').value.trim(),
       weight,
-      school: finalSchoolName,
+      organization: finalOrganizationName,
       student: $('#student').value.trim(),
-      status: $('#status') ? $('#status').value : 'Na escola',
+      status: $('#status') ? $('#status').value : 'Na organização',
       createdAt: new Date().toISOString()
     }
 
@@ -1108,7 +1108,7 @@ if (recordForm) {
           owner: record.student,
           weight: record.weight,
           state: record.status,
-          school: record.school
+          organization: record.organization
         })
       })
 
@@ -1157,7 +1157,7 @@ const REPORT_COLUMNS = [
   { key: 'id', label: 'ID', width: 44 },
   { key: 'device', label: 'Aparelho', width: 28 },
   { key: 'weight', label: 'Peso', width: 18, align: 'right' },
-  { key: 'school', label: 'Escola', width: 36 },
+  { key: 'organization', label: 'Organização', width: 36 },
   { key: 'student', label: 'Aluno', width: 28 },
   { key: 'status', label: 'Status', width: 20 }
 ]
@@ -1280,7 +1280,7 @@ const _exportPdf = () => {
     const summaryCells = [
       { label: 'Aparelhos cadastrados', value: String(displayRecords.length) },
       { label: 'Peso total arrecadado', value: `${stats.totalWeight.toFixed(2)} kg` },
-      { label: 'Escolas participantes', value: String(stats.school.length) },
+      { label: 'Organizações participantes', value: String(stats.organization.length) },
       { label: 'Alunos envolvidos', value: String(stats.student.length) }
     ]
     const gap = 4
@@ -1311,7 +1311,7 @@ const _exportPdf = () => {
     y = _sectionTitle('Destaques por peso arrecadado', y)
 
     const groups = [
-      { title: 'Escolas', rows: stats.school.slice(0, 5) },
+      { title: 'Organizações', rows: stats.organization.slice(0, 5) },
       { title: 'Alunos', rows: stats.student.slice(0, 5) }
     ]
     const colW = (contentW - 6) / 2
@@ -1568,7 +1568,7 @@ if ($('#btnStudentMilestones')) {
   })
 }
 
-_fetchSchools()
+_fetchOrganizations()
 _fetchRecords()
 
 

@@ -23,8 +23,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 }
 
-const API_ROUTES = ['/login', '/register', '/items', '/schools', '/users', '/health']
-
+const API_ROUTES = ['/login', '/register', '/items', '/organizations', '/users', '/health']
 
 const _sendFile = (res, statusCode, contentType, content) => {
   res.writeHead(statusCode, {
