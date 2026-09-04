@@ -111,6 +111,10 @@ const _setSelectedRow = (itemId, shouldSelect = null) => {
 
 let registeredOrganizations = []
 const STATUS_OPTIONS = ['Na organização', 'No IFTM UPT', 'Coletado pela Cooperu', 'Desmantelado']
+const PARTICIPANT_TYPE_REGISTERED = 'registered_user'
+const PARTICIPANT_TYPE_EXTERNAL = 'external'
+const EXTERNAL_PARTICIPANT_LABEL = 'Externo'
+const EXTERNAL_ORGANIZATION_STORAGE_VALUE = '__EXTERNAL__'
 let serverDown = false
 let authToken = sessionStorage.getItem('authToken') || null
 let currentUser = null
@@ -360,6 +364,19 @@ const _fetchOrganizations = async () => {
 }
 
 
+const _getParticipantType = (item = {}) => {
+  const explicitType = item.participantType || item.participant_type || item.contributorType || item.contributor_type
+
+  if (String(explicitType || '').toLowerCase() === PARTICIPANT_TYPE_EXTERNAL) return PARTICIPANT_TYPE_EXTERNAL
+  if (item.organization === EXTERNAL_ORGANIZATION_STORAGE_VALUE) return PARTICIPANT_TYPE_EXTERNAL
+
+  return PARTICIPANT_TYPE_REGISTERED
+}
+
+
+const _isExternalRecord = (item) => _getParticipantType(item) === PARTICIPANT_TYPE_EXTERNAL
+
+
 /* INFO: Single-pass stats calculator for total weight and organization/student rankings */
 const _calcStats = (items = records) => {
   const totals = { organization: new Map(), student: new Map() }
@@ -369,6 +386,9 @@ const _calcStats = (items = records) => {
     const weight = Number(item.weight || 0)
 
     totalWeight += weight
+
+    /* External contributions count toward campaign totals, but not toward rankings. */
+    if (_isExternalRecord(item)) return;
 
     ;['organization', 'student'].forEach((field) => {
       const val = item[field]
@@ -743,15 +763,21 @@ const _fetchRecords = async () => {
       serverDown = false
 
       if (Array.isArray(data.items)) {
-        records = data.items.map((item) => ({
-          id: String(item.uuid || item.id || ''),
-          device: item.name || '',
-          weight: Number(item.weight || 0),
-          organization: item.organization || '',
-          student: item.owner_name || item.ownerName || item.full_name || item.owner || '',
-          status: item.state || 'Na organização',
-          createdAt: item.createdAt || item.created_at || null
-        }))
+        records = data.items.map((item) => {
+          const participantType = _getParticipantType(item)
+          const isExternal = participantType === PARTICIPANT_TYPE_EXTERNAL
+
+          return {
+            id: String(item.uuid || item.id || ''),
+            device: item.name || '',
+            weight: Number(item.weight || 0),
+            organization: isExternal ? EXTERNAL_PARTICIPANT_LABEL : (item.organization || ''),
+            student: isExternal ? EXTERNAL_PARTICIPANT_LABEL : (item.owner_name || item.ownerName || item.full_name || item.owner || ''),
+            participantType,
+            status: item.state || 'Na organização',
+            createdAt: item.createdAt || item.created_at || null
+          }
+        })
       } else {
         records = []
       }
@@ -1078,12 +1104,65 @@ if ($('#studentLogoutButtonNav')) $('#studentLogoutButtonNav').addEventListener(
 
 /* INFO: Admin Device Registration Form */
 
+const _syncParticipantFields = () => {
+  const participantTypeInput = $('#participantType')
+  const organizationInput = $('#organization')
+  const studentInput = $('#student')
+  const classroomInput = $('#classroom')
+  const externalNote = $('#externalParticipantNote')
+
+  if (!participantTypeInput || !organizationInput || !studentInput) return;
+
+  const isExternal = participantTypeInput.value === PARTICIPANT_TYPE_EXTERNAL
+
+  ;[organizationInput, studentInput, classroomInput].filter(Boolean).forEach((input) => {
+    if (isExternal) {
+      if (!input.disabled) input.dataset.registeredValue = input.value
+      input.value = ''
+      input.disabled = true
+      input.required = false
+      input.classList.remove('is-invalid')
+      input.setCustomValidity('')
+    } else {
+      input.disabled = false
+      input.required = true
+
+      if (input.dataset.registeredValue !== undefined) {
+        input.value = input.dataset.registeredValue
+        delete input.dataset.registeredValue
+      }
+    }
+  })
+
+  if (externalNote) externalNote.classList.toggle('hidden', !isExternal)
+}
+
+
+const participantTypeInput = $('#participantType')
+
+if (participantTypeInput && recordForm) {
+  participantTypeInput.addEventListener('change', _syncParticipantFields)
+  recordForm.addEventListener('reset', () => globalThis.setTimeout(_syncParticipantFields, 0))
+  _syncParticipantFields()
+}
+
+
+const _clearParticipantFieldCache = () => {
+  ;[$('#organization'), $('#student'), $('#classroom')].filter(Boolean).forEach((input) => {
+    delete input.dataset.registeredValue
+  })
+}
+
 if (recordForm) {
   recordForm.addEventListener('submit', async (event) => {
     event.preventDefault()
 
     const submitBtn = recordForm.querySelector('button[type="submit"]')
-    const textInputs = [$('#device'), $('#organization'), $('#student')].filter(Boolean)
+    const participantType = participantTypeInput && participantTypeInput.value === PARTICIPANT_TYPE_EXTERNAL
+      ? PARTICIPANT_TYPE_EXTERNAL
+      : PARTICIPANT_TYPE_REGISTERED
+    const isExternal = participantType === PARTICIPANT_TYPE_EXTERNAL
+    const textInputs = [$('#device'), ...(isExternal ? [] : [$('#organization'), $('#student')])].filter(Boolean)
     const weightInput = $('#weight')
     const organizationInput = $('#organization')
     const studentInput = $('#student')
@@ -1110,7 +1189,7 @@ if (recordForm) {
     const enteredOrganization = organizationInput ? organizationInput.value.trim() : ''
     const isOrganizationValid = registeredOrganizations.some((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredOrganization.toLowerCase())
 
-    if (!isOrganizationValid) {
+    if (!isExternal && !isOrganizationValid) {
       if (organizationInput) {
         organizationInput.classList.add('is-invalid')
         organizationInput.setCustomValidity('Organização não cadastrada. Selecione ou cadastre uma organização válida.')
@@ -1129,7 +1208,7 @@ if (recordForm) {
     /* INFO: Strict validation 2 - Student email/username must exist in registered user accounts */
     const enteredStudent = studentInput ? studentInput.value.trim() : ''
 
-    if (enteredStudent) {
+    if (!isExternal && enteredStudent) {
       try {
         const userCheckRes = await globalThis.fetch(`${SERVER_URL}/users/check?username=${encodeURIComponent(enteredStudent)}`)
 
@@ -1167,15 +1246,20 @@ if (recordForm) {
     }
 
     /* Standardize organization name casing to registered version */
-    const matchedOrganizationObj = registeredOrganizations.find((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredOrganization.toLowerCase())
-    const finalOrganizationName = matchedOrganizationObj ? (typeof matchedOrganizationObj === 'string' ? matchedOrganizationObj : matchedOrganizationObj.name) : enteredOrganization
+    const matchedOrganizationObj = isExternal
+      ? null
+      : registeredOrganizations.find((s) => (typeof s === 'string' ? s : s.name).toLowerCase() === enteredOrganization.toLowerCase())
+    const finalOrganizationName = isExternal
+      ? EXTERNAL_PARTICIPANT_LABEL
+      : (matchedOrganizationObj ? (typeof matchedOrganizationObj === 'string' ? matchedOrganizationObj : matchedOrganizationObj.name) : enteredOrganization)
 
     const record = {
       id: _createId(),
       device: $('#device').value.trim(),
       weight,
       organization: finalOrganizationName,
-      student: $('#student').value.trim(),
+      student: isExternal ? EXTERNAL_PARTICIPANT_LABEL : $('#student').value.trim(),
+      participantType,
       status: $('#status') ? $('#status').value : 'Na organização',
       createdAt: new Date().toISOString()
     }
@@ -1195,15 +1279,17 @@ if (recordForm) {
         body: JSON.stringify({
           uuid: record.id,
           name: record.device,
-          owner: record.student,
+          owner: isExternal ? 'Usuário' : record.student,
           weight: record.weight,
           state: record.status,
-          organization: record.organization
+          organization: isExternal ? EXTERNAL_ORGANIZATION_STORAGE_VALUE : record.organization,
+          participant_type: record.participantType
         })
       })
 
       if (res.ok) {
         await _fetchRecords()
+        _clearParticipantFieldCache()
         recordForm.reset()
         _showToast('Dispositivo registrado com sucesso no banco de dados!', 'success')
 
@@ -1217,6 +1303,7 @@ if (recordForm) {
 
       records.unshift(record)
       _render()
+      _clearParticipantFieldCache()
       recordForm.reset()
       _showToast('Servidor offline. Dispositivo registrado localmente!', 'warning')
     } finally {

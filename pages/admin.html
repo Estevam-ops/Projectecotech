@@ -110,7 +110,14 @@
                     <label for="weight">Peso estimado (kg)</label>
                     <input id="weight" class="field-input" type="number" min="0.01" step="0.01" required placeholder="Ex.: 1.50" />
 
-                    <label for="organization">Organização (obrigatório)</label>
+                    <label for="participantType">Tipo de participante</label>
+                    <select id="participantType" class="field-input" aria-describedby="externalParticipantNote">
+                      <option value="registered_user">Usuário cadastrado</option>
+                      <option value="external">Externo (não é aluno)</option>
+                    </select>
+                    <small id="externalParticipantNote" class="field-note hidden">Cadastros externos entram nos totais gerais, mas não participam dos rankings.</small>
+
+                    <label for="organization">Organização</label>
                     <input id="organization" class="field-input" required list="organizationOptions" placeholder="Selecione uma organização cadastrada..." autocomplete="off" />
                     <datalist id="organizationOptions"></datalist>
 

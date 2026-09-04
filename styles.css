@@ -2267,6 +2267,14 @@ body {
   text-transform: uppercase;
 }
 
+.record-form .field-note {
+  display: block;
+  margin-top: -8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
 .admin-main {
   display: flex;
   flex-direction: column;

@@ -513,6 +513,13 @@
                   <label>Tipo do aparelho <input id="device" class="field-input" required list="deviceOptions" placeholder="Ex.: celular, notebook" autocomplete="off" /></label>
                   <datalist id="deviceOptions"></datalist>
                   <label>Peso estimado (kg) <input id="weight" class="field-input" type="number" min="0.01" step="0.01" required /></label>
+                  <label>Tipo de participante
+                    <select id="participantType" class="field-input" aria-describedby="externalParticipantNote">
+                      <option value="registered_user">Usuário cadastrado</option>
+                      <option value="external">Externo (não é aluno)</option>
+                    </select>
+                  </label>
+                  <small id="externalParticipantNote" class="field-note hidden">Cadastros externos entram nos totais gerais, mas não participam dos rankings.</small>
                   <label>Organização <input id="organization" class="field-input" required placeholder="Nome da organização" /></label>
                   <label>Sala/Turma <input id="classroom" class="field-input" required placeholder="Ex.: 2º A" /></label>
                   <label>Usuário <input id="student" class="field-input" required placeholder="Nome do usuário" /></label>
